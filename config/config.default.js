@@ -59,12 +59,55 @@ module.exports = appInfo => {
     },
   };
 
+  // MySQL 配置（从环境变量读取，如果没有环境变量则使用默认值）
+  // 正式部署时通过环境变量配置，调试环境在 config.local.js 中配置
+  config.mysql = {
+    client: {
+      host: process.env.MYSQL_HOST || 'dbconn.sealoshzh.site',
+      port: process.env.MYSQL_PORT || '42548',
+      user: process.env.MYSQL_USER || 'root',
+      password: process.env.MYSQL_PASSWORD || '',
+      database: process.env.MYSQL_DATABASE || 'egg_minimal',
+    },
+    app: true,
+    agent: false,
+  };
 
-  // 阿里云OSS配置（从环境变量读取，避免敏感信息泄露）
+  // Sequelize ORM 配置（从环境变量读取）
+  config.sequelize = {
+    dialect: 'mysql',
+    host: process.env.MYSQL_HOST || 'dbconn.sealoshzh.site',
+    port: parseInt(process.env.MYSQL_PORT || '42548'),
+    database: process.env.MYSQL_DATABASE || 'egg_minimal',
+    username: process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASSWORD || '',
+    timezone: '+08:00',
+    define: {
+      freezeTableName: true,
+      underscored: true,
+      timestamps: true,
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
+  };
+
+  // Redis 配置（从环境变量读取）
+  config.redis = {
+    client: {
+      port: parseInt(process.env.REDIS_PORT || '30725'),
+      host: process.env.REDIS_HOST || 'dbconn.sealoshzh.site',
+      username: process.env.REDIS_USERNAME || 'default',
+      password: process.env.REDIS_PASSWORD || '',
+      db: parseInt(process.env.REDIS_DB || '0'),
+    },
+  };
+
+  // 阿里云OSS配置（敏感信息在 config.local.js 和 config.prod.js 中配置）
+  // 这些文件已在 .gitignore 中，不会被提交到 Git
   config.oss = {
     region: process.env.OSS_REGION || 'oss-cn-hangzhou', // OSS区域
-    accessKeyId: process.env.OSS_ACCESS_KEY_ID || '', // 从环境变量读取 AccessKeyId
-    accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET || '', // 从环境变量读取 AccessKeySecret
+    accessKeyId: process.env.OSS_ACCESS_KEY_ID || '', // 从环境变量或 local/prod 配置读取
+    accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET || '', // 从环境变量或 local/prod 配置读取
     bucket: process.env.OSS_BUCKET || 'platform-standard', // Bucket 名称
     endpoint: process.env.OSS_ENDPOINT || '', // 可选：自定义域名
     // 上传配置
