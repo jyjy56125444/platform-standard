@@ -1,0 +1,56 @@
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0e1428;color:#e6e9f0}
+.container{max-width:1400px;margin:40px auto;padding:0 16px}
+h1{font-size:22px;margin:0 0 16px}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px}
+.sidebar{position:sticky;top:20px;max-height:calc(100vh - 130px);background:#141a2f;border:1px solid #1f2a44;border-radius:12px;padding:12px 0}
+.sidebar-content{height:100%;overflow-y:auto;padding:0 16px}
+/* 侧边栏滚动条样式 */
+.sidebar-content::-webkit-scrollbar{width:8px}
+.sidebar-content::-webkit-scrollbar-track{background:transparent;border-radius:4px}
+.sidebar-content::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.2);border-radius:4px}
+.sidebar-content::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.3)}
+/* Firefox 滚动条样式 */
+.sidebar-content{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.2) transparent}
+.sidebar h2{font-size:14px;margin:0 0 10px;color:#cbd5e1;display:flex;align-items:center;justify-content:space-between}
+.sidebar h2 .section-link{color:#cbd5e1;text-decoration:none}
+.sidebar h2 .section-link:hover{color:#e6e9f0}
+.collapse-btn{appearance:none;border:1px solid #263655;background:#11182c;color:#cbd5e1;border-radius:6px;padding:2px 6px;cursor:pointer}
+.collapse-btn:hover{background:#0b1020}
+.nav{list-style:none;margin:0;padding:0}
+.nav li{margin:6px 0}
+.nav a{color:#9aa4bc;text-decoration:none;font-size:13px}
+.nav a:hover{color:#e6e9f0}
+.stack{display:grid;grid-template-columns:1fr;gap:16px;min-width:0;width:100%}
+.stack > section{min-width:0}
+.card{background:#141a2f;border:1px solid #1f2a44;border-radius:12px;padding:16px;min-width:0}
+main{min-width:0;overflow-x:hidden}
+.pill{display:inline-block;padding:4px 10px;border-radius:999px;border:1px solid #263655;background:#11182c;color:#93c5fd;font-size:12px}
+.get{color:#6ee7b7;border-color:#134e4a;background:#0b2e2a}
+.post{color:#93c5fd;border-color:#1e3a8a;background:#0b1f3a}
+.del{color:#fca5a5;border-color:#7f1d1d;background:#2a0e0e}
+pre{background:#0b1020;border:1px solid #1f2a44;border-radius:8px;padding:12px;overflow:auto;color:#e6e9f0;width:100%;max-width:100%;box-sizing:border-box;display:block}
+.tip{color:#9aa4bc;font-size:13px;margin:8px 0}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+input[type=text]{width:100%;box-sizing:border-box;background:#0b1020;border:1px solid #1f2a44;border-radius:8px;color:#e6e9f0;padding:8px 10px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px;min-width:0}
+.row > div{min-width:0}
+.small{font-size:12px;color:#9aa4bc}
+/* 权限矩阵样式 */
+.permission-matrix{font-size:13px}
+.permission-matrix h2{margin:0 0 16px;font-size:18px;font-weight:600}
+.permission-matrix h3{margin-top:24px;font-size:14px;font-weight:600}
+.permission-matrix h4{margin-top:16px;font-size:13px;font-weight:600}
+.permission-matrix p,.permission-matrix li,.permission-matrix ul,.permission-matrix ol{font-size:13px;line-height:1.6}
+.permission-matrix section{margin-top:32px}
+.permission-matrix .warning-box{margin-top:16px;padding:12px;border-left:4px solid #ffc107;border-radius:4px}
+.permission-matrix .warning-box ul{margin:8px 0 0 20px}
+.permission-matrix pre.code-dark{background:#000;color:#fff;padding:12px;border-radius:4px;overflow-x:auto}
+.permission-matrix pre.code-dark code{color:#fff}
+/* 权限矩阵表格样式 */
+.permission-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+.permission-table thead tr{background:#1f2a44}
+.permission-table th{padding:8px;text-align:left;border:1px solid #1f2a44;color:#e6e9f0;font-weight:600;font-size:13px}
+.permission-table th.text-center{text-align:center}
+.permission-table td{padding:8px;border:1px solid #1f2a44;color:#e6e9f0;font-size:13px}
+.permission-table td.text-center{text-align:center}
+

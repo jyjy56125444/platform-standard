@@ -1,0 +1,50 @@
+{
+  "name": "egg-minimal-project",
+  "version": "1.0.0",
+  "description": "阿里Egg框架最小可运行项目",
+  "main": "index.js",
+  "scripts": {
+    "dev": "egg-bin dev",
+    "start": "egg-scripts start --daemon --title=egg-server-minimal-project",
+    "start:prod": "egg-scripts start --no-daemon --title=egg-server-minimal-project",
+    "stop": "egg-scripts stop --title=egg-server-minimal-project",
+    "test": "npm run lint -- --fix && npm run test-local",
+    "test-local": "egg-bin test",
+    "cov": "egg-bin cov",
+    "lint": "eslint .",
+    "ci": "npm run lint && npm run cov"
+  },
+  "keywords": [
+    "egg",
+    "eggjs",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ali-oss": "^6.23.0",
+    "bcryptjs": "^3.0.3",
+    "egg": "^3.0.0",
+    "egg-mysql": "^3.0.0",
+    "egg-redis": "^2.6.1",
+    "egg-scripts": "^2.11.0",
+    "egg-sequelize": "^5.2.0",
+    "egg-swagger-doc": "^2.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.0.0",
+    "sequelize": "^6.0.0",
+    "vue": "^3.5.22"
+  },
+  "devDependencies": {
+    "egg-bin": "^4.16.0",
+    "eslint": "^8.0.0",
+    "eslint-config-egg": "^12.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "egg": {
+    "typescript": false,
+    "declarations": false
+  }
+}
