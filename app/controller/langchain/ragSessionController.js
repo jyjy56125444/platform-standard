@@ -81,7 +81,14 @@ class RAGSessionController extends Controller {
       };
 
       const result = await ctx.service.langchain.ragSessionService.getSessions(appId, options);
-      ctx.body = { code: 200, message: 'success', data: result };
+      ctx.body = { 
+        code: 200, 
+        message: 'success', 
+        data: {
+          ...result,
+          list: ctx.app.utils.case.toCamelCaseKeys(result.list || []),
+        }
+      };
     } catch (error) {
       ctx.logger.error('获取会话列表失败:', error);
       ctx.status = 500;
@@ -150,7 +157,14 @@ class RAGSessionController extends Controller {
       };
 
       const result = await ctx.service.langchain.ragSessionService.getSessionMessages(sessionId, options);
-      ctx.body = { code: 200, message: 'success', data: result };
+      ctx.body = { 
+        code: 200, 
+        message: 'success', 
+        data: {
+          ...result,
+          list: ctx.app.utils.case.toCamelCaseKeys(result.list || []),
+        }
+      };
     } catch (error) {
       ctx.logger.error('获取会话消息列表失败:', error);
       ctx.status = 500;

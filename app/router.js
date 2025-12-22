@@ -71,10 +71,6 @@ module.exports = app => {
   router.get('/api/rag/sessions/:appId/:sessionId/messages', controller.langchain.ragSessionController.getSessionMessages); // 获取会话消息列表（支持分页）
   // RAG 问答（appId 通过路径传递）
   router.post('/api/rag/ask/:appId', controller.langchain.ragController.ask);
-  // 问答历史列表
-  router.get('/api/rag/questions/:appId', controller.langchain.ragController.getQuestions);
-  // 单条问答详情
-  router.get('/api/rag/questions/:appId/:questionId', controller.langchain.ragController.getQuestionDetail);
   router.post('/api/rag/documents/:appId', controller.langchain.ragController.addDocuments); // 文档入库
   router.get('/api/rag/config/:appId', controller.langchain.ragController.getRAGConfig); // 获取 RAG 配置（完整配置）
   router.put('/api/rag/config/:appId', controller.langchain.ragController.setRAGConfig); // 设置 RAG 配置（支持部分更新）

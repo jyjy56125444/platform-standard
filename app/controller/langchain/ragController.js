@@ -105,89 +105,6 @@ class RAGController extends Controller {
   }
 
   /**
-   * 查询问答历史列表
-   * GET /api/rag/questions/:appId
-   * Query: page?, pageSize?, userId?, feedback?, startTime?, endTime?
-   */
-  async getQuestions() {
-    const { ctx } = this;
-    try {
-      const appId = Number(ctx.params.appId);
-      if (!appId || !Number.isFinite(appId)) {
-        ctx.status = 400;
-        ctx.body = { code: 400, message: 'appId 参数无效' };
-        return;
-      }
-
-      const {
-        page,
-        pageSize,
-        userId,
-        feedback,
-        startTime,
-        endTime,
-      } = ctx.query;
-
-      const options = {
-        page: page ? Number(page) : undefined,
-        pageSize: pageSize ? Number(pageSize) : undefined,
-        userId: userId ? Number(userId) : undefined,
-        // feedback 允许为 0/1 或 true/false 字符串
-        feedback: typeof feedback === 'string'
-          ? (feedback === 'true' || feedback === '1'
-            ? 1
-            : (feedback === 'false' || feedback === '0' ? 0 : undefined))
-          : undefined,
-        startTime,
-        endTime,
-      };
-
-      const result = await ctx.service.langchain.ragService.getQuestions(appId, options);
-      ctx.body = { code: 200, message: 'success', data: result };
-    } catch (error) {
-      ctx.logger.error('获取问答历史失败:', error);
-      ctx.status = 500;
-      ctx.body = { code: 500, message: '获取问答历史失败', error: error.message };
-    }
-  }
-
-  /**
-   * 查询单条问答详情
-   * GET /api/rag/questions/:appId/:questionId
-   */
-  async getQuestionDetail() {
-    const { ctx } = this;
-    try {
-      const appId = Number(ctx.params.appId);
-      const questionId = Number(ctx.params.questionId);
-
-      if (!appId || !Number.isFinite(appId)) {
-        ctx.status = 400;
-        ctx.body = { code: 400, message: 'appId 参数无效' };
-        return;
-      }
-      if (!questionId || !Number.isFinite(questionId)) {
-        ctx.status = 400;
-        ctx.body = { code: 400, message: 'questionId 参数无效' };
-        return;
-      }
-
-      const detail = await ctx.service.langchain.ragService.getQuestionDetail(appId, questionId);
-      if (!detail) {
-        ctx.status = 404;
-        ctx.body = { code: 404, message: '问答记录不存在' };
-        return;
-      }
-
-      ctx.body = { code: 200, message: 'success', data: detail };
-    } catch (error) {
-      ctx.logger.error('获取问答详情失败:', error);
-      ctx.status = 500;
-      ctx.body = { code: 500, message: '获取问答详情失败', error: error.message };
-    }
-  }
-
-  /**
    * 获取 RAG 配置（完整配置，包含所有字段）
    * GET /api/rag/config/:appId
    */
@@ -202,7 +119,7 @@ class RAGController extends Controller {
       }
 
       const config = await ctx.service.langchain.ragService.getRAGConfig(appId);
-      ctx.body = { code: 200, message: 'success', data: config };
+      ctx.body = { code: 200, message: 'success', data: ctx.app.utils.case.toCamelCaseKeys(config) };
     } catch (error) {
       ctx.logger.error('获取 RAG 配置失败:', error);
       ctx.status = 500;
@@ -229,7 +146,7 @@ class RAGController extends Controller {
 
       const body = ctx.request.body || {};
       const result = await ctx.service.langchain.ragService.setRAGConfig(appId, body);
-      ctx.body = { code: 200, message: 'success', data: result };
+      ctx.body = { code: 200, message: 'success', data: ctx.app.utils.case.toCamelCaseKeys(result) };
     } catch (error) {
       ctx.logger.error('设置 RAG 配置失败:', error);
       ctx.status = 500;

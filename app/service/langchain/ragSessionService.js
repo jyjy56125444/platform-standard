@@ -342,24 +342,13 @@ class RAGSessionService extends Service {
         [ ...params, limit, offset ]
       );
 
-      const normalizedList = (list || []).map(row => ({
-        sessionId: row.SESSION_ID,
-        appId: row.APP_ID,
-        userId: row.USER_ID,
-        userName: row.USER_NAME,
-        sessionTitle: row.SESSION_TITLE,
-        status: row.STATUS,
-        extra: row.EXTRA ? (typeof row.EXTRA === 'string' ? JSON.parse(row.EXTRA) : row.EXTRA) : null,
-        createTime: row.CREATE_TIME,
-        updateTime: row.UPDATE_TIME,
-      }));
-
+      // 返回原始数据库数据，由 controller 层统一使用 toCamelCaseKeys 处理
       return {
         total,
         page: Number(page),
         pageSize: limit,
         totalPages: limit ? Math.ceil(total / limit) : 0,
-        list: normalizedList,
+        list: list || [],
       };
     } catch (error) {
       ctx.logger.error('获取会话列表失败:', error);
@@ -424,18 +413,11 @@ class RAGSessionService extends Service {
         [ ...params, limit, offset ]
       );
 
-      const normalizedList = (list || []).map(row => ({
-        messageId: row.MESSAGE_ID,
-        sessionId: row.SESSION_ID,
-        appId: row.APP_ID,
-        userId: row.USER_ID,
-        role: row.ROLE,
-        content: row.CONTENT,
-        sourceDocs: row.SOURCE_DOCS ? (typeof row.SOURCE_DOCS === 'string' ? JSON.parse(row.SOURCE_DOCS) : row.SOURCE_DOCS) : null,
-        tokensUsed: row.TOKENS_USED,
-        responseTime: row.RESPONSE_TIME,
-        streamed: row.STREAMED === 1,
-        createTime: row.CREATE_TIME,
+      // 返回原始数据库数据，由 controller 层统一使用 toCamelCaseKeys 处理
+      // 注意：SOURCE_DOCS 需要解析 JSON，但保持原始字段名
+      const processedList = (list || []).map(row => ({
+        ...row,
+        SOURCE_DOCS: row.SOURCE_DOCS ? (typeof row.SOURCE_DOCS === 'string' ? JSON.parse(row.SOURCE_DOCS) : row.SOURCE_DOCS) : null,
       }));
 
       return {
@@ -443,7 +425,7 @@ class RAGSessionService extends Service {
         page: Number(page),
         pageSize: limit,
         totalPages: limit ? Math.ceil(total / limit) : 0,
-        list: normalizedList,
+        list: processedList,
       };
     } catch (error) {
       ctx.logger.error('获取会话消息列表失败:', error);

@@ -120,48 +120,50 @@ class RAGService extends Service {
       ];
     }
 
+    // 返回原始数据库字段名，由 controller 层统一使用 toCamelCaseKeys 处理
+    // 保留业务逻辑：JSON 解析、默认值设置等
     return {
-      configId: config.CONFIG_ID,
-      appId: config.APP_ID,
+      CONFIG_ID: config.CONFIG_ID,
+      APP_ID: config.APP_ID,
       // Milvus Collection 配置
-      milvusCollection: config.MILVUS_COLLECTION || `rag_app_${appId}`,
-      vectorDimension: config.VECTOR_DIMENSION || 1024,
+      MILVUS_COLLECTION: config.MILVUS_COLLECTION || `rag_app_${appId}`,
+      VECTOR_DIMENSION: config.VECTOR_DIMENSION || 1024,
       // 模型配置
-      embeddingModel: config.EMBEDDING_MODEL || 'text-embedding-v4',
-      llmModel: config.LLM_MODEL || 'qwen-plus',
+      EMBEDDING_MODEL: config.EMBEDDING_MODEL || 'text-embedding-v4',
+      LLM_MODEL: config.LLM_MODEL || 'qwen-plus',
       // LLM Prompt 配置
-      systemPrompt: config.SYSTEM_PROMPT || null,
-      userPromptTemplate: config.USER_PROMPT_TEMPLATE || null,
+      SYSTEM_PROMPT: config.SYSTEM_PROMPT || null,
+      USER_PROMPT_TEMPLATE: config.USER_PROMPT_TEMPLATE || null,
       // LLM 参数配置
-      llmTemperature: config.LLM_TEMPERATURE !== null && config.LLM_TEMPERATURE !== undefined 
+      LLM_TEMPERATURE: config.LLM_TEMPERATURE !== null && config.LLM_TEMPERATURE !== undefined 
         ? Number(config.LLM_TEMPERATURE) 
         : 0.7,
-      llmMaxTokens: config.LLM_MAX_TOKENS || 2000,
-      llmTopP: config.LLM_TOP_P !== null && config.LLM_TOP_P !== undefined 
+      LLM_MAX_TOKENS: config.LLM_MAX_TOKENS || 2000,
+      LLM_TOP_P: config.LLM_TOP_P !== null && config.LLM_TOP_P !== undefined 
         ? Number(config.LLM_TOP_P) 
         : 0.8,
       // 检索配置
-      topK: config.TOP_K || 5,
-      similarityThreshold: Number(config.SIMILARITY_THRESHOLD) || 0.4,
+      TOP_K: config.TOP_K || 5,
+      SIMILARITY_THRESHOLD: Number(config.SIMILARITY_THRESHOLD) || 0.4,
       // 索引配置
-      indexType: config.INDEX_TYPE || 'HNSW',
-      indexParams: indexParams || {},
+      INDEX_TYPE: config.INDEX_TYPE || 'HNSW',
+      INDEX_PARAMS: indexParams || {},
       // Rerank 配置
-      rerankEnabled: Boolean(config.RERANK_ENABLED),
-      rerankModel: config.RERANK_MODEL || null,
-      rerankTopK: config.RERANK_TOP_K || 10,
-      rerankParams: rerankParams || {},
+      RERANK_ENABLED: Boolean(config.RERANK_ENABLED),
+      RERANK_MODEL: config.RERANK_MODEL || null,
+      RERANK_TOP_K: config.RERANK_TOP_K || 10,
+      RERANK_PARAMS: rerankParams || {},
       // 文本分段配置
-      chunkMaxLength: config.CHUNK_MAX_LENGTH || 2048,
-      chunkOverlap: config.CHUNK_OVERLAP || 100,
-      chunkSeparators: separators,
+      CHUNK_MAX_LENGTH: config.CHUNK_MAX_LENGTH || 2048,
+      CHUNK_OVERLAP: config.CHUNK_OVERLAP || 100,
+      CHUNK_SEPARATORS: separators,
       // 系统字段
-      status: config.STATUS || 1,
-      remark: config.REMARK || null,
-      createTime: config.CREATE_TIME,
-      updateTime: config.UPDATE_TIME,
-      creator: config.CREATOR || null,
-      updater: config.UPDATER || null,
+      STATUS: config.STATUS || 1,
+      REMARK: config.REMARK || null,
+      CREATE_TIME: config.CREATE_TIME,
+      UPDATE_TIME: config.UPDATE_TIME,
+      CREATOR: config.CREATOR || null,
+      UPDATER: config.UPDATER || null,
     };
   }
 
@@ -420,9 +422,9 @@ class RAGService extends Service {
   async getChunkConfig(appId) {
     const config = await this.getRAGConfig(appId);
     return {
-      maxLength: config.chunkMaxLength,
-      overlap: config.chunkOverlap,
-      separators: config.chunkSeparators,
+      maxLength: config.CHUNK_MAX_LENGTH,
+      overlap: config.CHUNK_OVERLAP,
+      separators: config.CHUNK_SEPARATORS,
     };
   }
 
@@ -769,163 +771,6 @@ class RAGService extends Service {
     } catch (error) {
       ctx.logger.error('文档入库失败:', error);
       throw new Error(`文档入库失败: ${error.message}`);
-    }
-  }
-
-  /**
-   * 查询问答历史
-   * @param {number} appId
-   * @param {object} options { page, pageSize, userId, feedback, startTime, endTime }
-   */
-  async getQuestions(appId, options = {}) {
-    const { ctx, app } = this;
-    const {
-      page = 1,
-      pageSize = 20,
-      userId,
-      feedback,
-      startTime,
-      endTime,
-    } = options;
-
-    const limit = Math.min(Number(pageSize) || 20, 100);
-    const offset = (Number(page) - 1) * limit;
-
-    const where = [ 'APP_ID = ?' ];
-    const params = [ appId ];
-
-    if (userId !== undefined && userId !== null && userId !== '') {
-      where.push('USER_ID = ?');
-      params.push(Number(userId));
-    }
-
-    if (feedback === 0 || feedback === 1 || feedback === '0' || feedback === '1') {
-      where.push('FEEDBACK = ?');
-      params.push(Number(feedback));
-    }
-
-    if (startTime) {
-      where.push('CREATE_TIME >= ?');
-      params.push(startTime);
-    }
-
-    if (endTime) {
-      where.push('CREATE_TIME <= ?');
-      params.push(endTime);
-    }
-
-    const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
-
-    try {
-      const countRows = await app.mysql.query(
-        `SELECT COUNT(1) as total FROM rag_question ${whereSql}`,
-        params
-      );
-      const total = countRows && countRows[0] ? Number(countRows[0].total) || 0 : 0;
-
-      const list = await app.mysql.query(
-        `SELECT 
-           QUESTION_ID,
-           APP_ID,
-           USER_ID,
-           USER_NAME,
-           QUESTION,
-           ANSWER,
-           SOURCE_DOCS,
-           TOKENS_USED,
-           COST,
-           RESPONSE_TIME,
-           FEEDBACK,
-           FEEDBACK_TIME,
-           CREATE_TIME
-         FROM rag_question
-         ${whereSql}
-         ORDER BY CREATE_TIME DESC
-         LIMIT ? OFFSET ?`,
-        [ ...params, limit, offset ]
-      );
-
-      const normalizedList = (list || []).map(row => ({
-        questionId: row.QUESTION_ID,
-        appId: row.APP_ID,
-        userId: row.USER_ID,
-        userName: row.USER_NAME,
-        question: row.QUESTION,
-        answer: row.ANSWER,
-        sourceDocs: row.SOURCE_DOCS ? JSON.parse(row.SOURCE_DOCS) : [],
-        tokensUsed: row.TOKENS_USED,
-        cost: Number(row.COST) || 0,
-        responseTime: row.RESPONSE_TIME,
-        feedback: row.FEEDBACK,
-        feedbackTime: row.FEEDBACK_TIME,
-        createTime: row.CREATE_TIME,
-      }));
-
-      return {
-        total,
-        page: Number(page),
-        pageSize: limit,
-        totalPages: limit ? Math.ceil(total / limit) : 0,
-        list: normalizedList,
-      };
-    } catch (error) {
-      ctx.logger.error('查询问答历史失败:', error);
-      throw new Error(`查询问答历史失败: ${error.message}`);
-    }
-  }
-
-  /**
-   * 查询单条问答详情
-   * @param {number} appId
-   * @param {number} questionId
-   */
-  async getQuestionDetail(appId, questionId) {
-    const { ctx, app } = this;
-    try {
-      const rows = await app.mysql.query(
-        `SELECT 
-           QUESTION_ID,
-           APP_ID,
-           USER_ID,
-           USER_NAME,
-           QUESTION,
-           ANSWER,
-           SOURCE_DOCS,
-           TOKENS_USED,
-           COST,
-           RESPONSE_TIME,
-           FEEDBACK,
-           FEEDBACK_TIME,
-           CREATE_TIME
-         FROM rag_question
-         WHERE APP_ID = ? AND QUESTION_ID = ?
-         LIMIT 1`,
-        [ appId, questionId ]
-      );
-
-      if (!rows || rows.length === 0) {
-        return null;
-      }
-
-      const row = rows[0];
-      return {
-        questionId: row.QUESTION_ID,
-        appId: row.APP_ID,
-        userId: row.USER_ID,
-        userName: row.USER_NAME,
-        question: row.QUESTION,
-        answer: row.ANSWER,
-        sourceDocs: row.SOURCE_DOCS ? JSON.parse(row.SOURCE_DOCS) : [],
-        tokensUsed: row.TOKENS_USED,
-        cost: Number(row.COST) || 0,
-        responseTime: row.RESPONSE_TIME,
-        feedback: row.FEEDBACK,
-        feedbackTime: row.FEEDBACK_TIME,
-        createTime: row.CREATE_TIME,
-      };
-    } catch (error) {
-      ctx.logger.error('查询问答详情失败:', error);
-      throw new Error(`查询问答详情失败: ${error.message}`);
     }
   }
 
