@@ -29,11 +29,15 @@ module.exports = appInfo => {
   config.multipart = {
     mode: 'stream', // 使用流模式
     fileSize: '200mb', // 最大文件大小：200MB（支持APK安装包）
-    // 允许的文件扩展名：图片、APK安装包等
+    // 允许的文件扩展名：图片、文档、APK安装包等
     whitelist: [ 
       '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', // 图片格式
+      '.pdf', '.md', '.txt', '.doc', '.docx', // 文档格式
       '.apk', '.xapk', // APK安装包格式
     ],
+    // 文件名匹配规则：允许中文字符、英文字母、数字、下划线、连字符、点号、空格等常见字符
+    // 使用更宽松的正则，允许大部分Unicode字符（包括中文）
+    fileMatch: /^[\s\S]+$/,
     // 自定义文件名验证函数，允许中文字符
     checkFile(fieldName, fileStream, fileName) {
       // 如果没有文件，直接返回
@@ -44,8 +48,9 @@ module.exports = appInfo => {
       
       // 检查扩展名是否在 whitelist 中
       const allowedExts = [ 
-        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg',
-        '.apk', '.xapk',
+        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', // 图片格式
+        '.pdf', '.md', '.txt', '.doc', '.docx', // 文档格式
+        '.apk', '.xapk', // APK安装包格式
       ];
       
       if (!allowedExts.includes(ext)) {
@@ -54,7 +59,7 @@ module.exports = appInfo => {
         return err;
       }
       
-      // 验证通过，返回 null
+      // 验证通过，返回 null（允许中文字符文件名）
       return null;
     },
   };
@@ -116,6 +121,28 @@ module.exports = appInfo => {
       maxSize: 5 * 1024 * 1024, // 最大文件大小：5MB
       allowedMimeTypes: [ 'image/jpeg', 'image/png', 'image/gif', 'image/webp' ], // 允许的文件类型
     },
+  };
+
+  // Milvus 向量数据库配置（从环境变量读取）
+  config.milvus = {
+    address: process.env.MILVUS_ADDRESS || 'dbconn.sealoshzh.site:49174', // Milvus 地址
+    username: process.env.MILVUS_USERNAME || '', // 用户名（可选，如果 Milvus 未启用认证则为空）
+    password: process.env.MILVUS_PASSWORD || '', // 密码（可选，如果 Milvus 未启用认证则为空）
+  };
+
+  // 阿里云 DashScope Embedding 配置（从环境变量读取）
+  config.dashscope = {
+    apiKey: process.env.DASHSCOPE_API_KEY || '', // DashScope API Key（Embedding 和 LLM 共用）
+    embeddingModel: process.env.DASHSCOPE_EMBEDDING_MODEL || 'text-embedding-v4', // Embedding 模型名称（文本模型）
+    embeddingDimension: parseInt(process.env.DASHSCOPE_EMBEDDING_DIMENSION || '1024'), // 向量维度（text-embedding-v4 支持 2048/1536/1024/768/512/256/128/64，默认 1024）
+    baseUrl: process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/api/v1', // Embedding API 基础地址
+  };
+
+  // 阿里云 DashScope LLM 配置（从环境变量读取）
+  config.llm = {
+    apiKey: process.env.DASHSCOPE_API_KEY || '', // DashScope API Key（与 Embedding 共用，也可单独配置）
+    baseUrl: process.env.DASHSCOPE_LLM_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1', // LLM API 基础地址（兼容 OpenAI 格式）
+    endpoint: process.env.DASHSCOPE_LLM_ENDPOINT || '/chat/completions', // LLM API 端点路径
   };
 
   // add your user config here

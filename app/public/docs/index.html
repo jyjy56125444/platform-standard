@@ -5,11 +5,69 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>平台标准接口文档</title>
   <link rel="stylesheet" href="./style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <!-- CDN 降级策略：优先国内 CDN，失败则依次降级到 unpkg 和 cdnjs -->
+  <script>
+    (function() {
+      var cdnSources = [
+        'https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.prod.min.js',
+        'https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js'
+      ];
+      var currentIndex = 0;
+      
+      function loadVue() {
+        if (currentIndex >= cdnSources.length) {
+          console.error('所有 Vue CDN 源加载失败');
+          return;
+        }
+        
+        var script = document.createElement('script');
+        script.src = cdnSources[currentIndex];
+        script.onerror = function() {
+          currentIndex++;
+          loadVue();
+        };
+        script.onload = function() {
+          // 确保 Vue 在模块加载前可用
+          if (typeof Vue !== 'undefined') {
+            window.Vue = Vue;
+            // Vue 加载完成后，再加载模块脚本
+            loadModuleScript();
+          } else {
+            // 如果 Vue 仍未加载，等待一下再设置（处理异步加载）
+            setTimeout(function() {
+              if (typeof Vue !== 'undefined') {
+                window.Vue = Vue;
+                loadModuleScript();
+              }
+            }, 100);
+          }
+        };
+        document.head.appendChild(script);
+      }
+      
+      function loadModuleScript() {
+        // 只有在 Vue 加载完成后才加载模块脚本
+        if (typeof window.Vue === 'undefined' && typeof Vue !== 'undefined') {
+          window.Vue = Vue;
+        }
+        if (typeof window.Vue === 'undefined') {
+          setTimeout(loadModuleScript, 50);
+          return;
+        }
+        
+        var moduleScript = document.createElement('script');
+        moduleScript.type = 'module';
+        moduleScript.src = './src/main.js';
+        document.body.appendChild(moduleScript);
+      }
+      
+      loadVue();
+    })();
+  </script>
 </head>
 <body>
   <div id="app"></div>
-  <script type="module" src="./src/main.js"></script>
 </body>
 </html>
 

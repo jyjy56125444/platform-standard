@@ -248,3 +248,174 @@ const data = await res.json();
 
 - `plat_users`（见 `database/init.sql`）：
   - 新增字段：`USER_AVATAR VARCHAR(500)` 用于存放头像 URL。
+
+## Milvus 2.4.x 向量数据库集成
+
+### 关键配置
+
+项目使用 Milvus 2.4.5 作为向量数据库，用于 RAG（检索增强生成）系统的向量存储和检索。
+
+#### 1. Collection 加载（重要）
+
+**Milvus 的 Collection 必须加载到内存后才能进行搜索**，否则搜索会返回空结果。
+
+```javascript
+// app/service/langchain/milvusVectorStore.js
+async ensureCollectionLoaded(collectionName) {
+  const client = this.getClient();
+  
+  // 检查 Collection 是否存在
+  const hasCollection = await client.hasCollection({ collection_name: collectionName });
+  if (!hasCollection.value) {
+    return;
+  }
+
+  // 检查加载状态（兼容枚举和字符串格式）
+  const loadState = await client.getLoadState({ collection_name: collectionName });
+  const stateValue = loadState.state?.toString() || String(loadState.state);
+  const isLoaded = stateValue.includes('Loaded') || stateValue === 'Loaded';
+  
+  if (!isLoaded) {
+    // 未加载则加载 Collection
+    await client.loadCollection({ collection_name: collectionName });
+  }
+}
+```
+
+**调用时机**：
+- 在 `initRAGComponents` 中初始化时加载
+- 在 `similaritySearch` 搜索前确保已加载
+- 在 `addDocuments` 添加文档后确保已加载
+
+#### 2. 搜索 API 正确格式（Milvus 2.4.x）
+
+**关键点**：`params` 必须是 **JSON 字符串格式**，不是对象！
+
+```javascript
+// app/service/langchain/milvusVectorStore.js
+const searchRequest = {
+  collection_name: collectionName,
+  data: [normalizedVector], // 查询向量数组
+  anns_field: 'vector', // 向量字段名，在顶层
+  search_params: {
+    metric_type: 'COSINE', // 距离度量类型
+    params: JSON.stringify({ ef: 100 }), // ⚠️ 必须是 JSON 字符串，不是对象！
+    topk: topK, // 在 search_params 中设置 topk（Milvus 要求）
+  },
+  limit: topK, // 同时在顶层设置 limit（备选方案）
+  output_fields: ['text'], // 输出字段
+};
+
+const results = await client.search(searchRequest);
+```
+
+**常见错误**：
+- ❌ `params: { ef: 100 }` - 对象格式会导致 JSON 解析错误
+- ✅ `params: JSON.stringify({ ef: 100 })` - 正确的字符串格式
+
+#### 3. 结果解析（Milvus 2.4.x 返回格式）
+
+Milvus 2.4.x 的返回结构中，`results.results` **本身就是结果数组**，每个元素包含 `score` 和 `text` 字段。
+
+```javascript
+// app/service/langchain/milvusVectorStore.js
+if (results && results.results && Array.isArray(results.results) && results.results.length > 0) {
+  const firstElement = results.results[0];
+  
+  if (firstElement && typeof firstElement === 'object' && firstElement.hasOwnProperty('score')) {
+    // results.results 本身就是结果数组，每个元素包含 score 和 text
+    rawResults = results.results;
+  } else if (Array.isArray(firstElement)) {
+    // 如果第一个元素是数组，说明 results.results[0] 是结果数组
+    rawResults = firstElement;
+  }
+}
+
+// 格式化结果
+const formattedResults = rawResults.map((item, idx) => {
+  // Milvus 2.4.x 直接返回的格式：{ score, text }
+  if (item.score !== undefined && item.text !== undefined) {
+    return {
+      id: item.id || `result_${idx}`,
+      text: item.text,
+      metadata: item.metadata || {},
+      score: item.score,
+    };
+  }
+  // 兼容旧的 entity 结构格式
+  // ...
+});
+```
+
+#### 4. 完整搜索流程示例
+
+```javascript
+// 1. 确保 Collection 已加载
+await this.ensureCollectionLoaded(collectionName);
+
+// 2. 规范化查询向量（确保是数字数组）
+const normalizedVector = queryVector.map(v => Number(v));
+
+// 3. 构建搜索参数（注意 params 是 JSON 字符串）
+const ef = Math.max(topK * 2, 100); // HNSW 索引的 ef 参数
+const searchRequest = {
+  collection_name: collectionName,
+  data: [normalizedVector],
+  anns_field: 'vector',
+  search_params: {
+    metric_type: 'COSINE',
+    params: JSON.stringify({ ef }), // ⚠️ JSON 字符串格式
+    topk: topK,
+  },
+  limit: topK,
+  output_fields: ['text'],
+};
+
+// 4. 执行搜索
+const results = await client.search(searchRequest);
+
+// 5. 解析结果（results.results 本身就是结果数组）
+if (results?.results && Array.isArray(results.results)) {
+  const searchResults = results.results.map(item => ({
+    id: item.id || `result_${idx}`,
+    text: item.text,
+    score: item.score,
+    metadata: item.metadata || {},
+  }));
+  
+  // 6. 按阈值过滤
+  return searchResults.filter(item => item.score >= threshold);
+}
+```
+
+### 关键文件
+
+- `app/service/langchain/milvusVectorStore.js` - Milvus 向量存储服务封装
+- `app/service/langchain/ragService.js` - RAG 服务，整合向量检索和 LLM
+- `config/config.default.js` - Milvus 连接配置
+
+### 配置示例
+
+```javascript
+// config/config.default.js
+config.milvus = {
+  address: process.env.MILVUS_ADDRESS || 'localhost:19530',
+  username: process.env.MILVUS_USERNAME || '',
+  password: process.env.MILVUS_PASSWORD || '',
+};
+```
+
+### 常见问题
+
+1. **搜索返回空结果**
+   - 检查 Collection 是否已加载（调用 `ensureCollectionLoaded`）
+   - 检查 Collection 是否有数据（`count` 方法）
+
+2. **JSON 解析错误**
+   - 确保 `params` 是 JSON 字符串格式：`JSON.stringify({ ef: 100 })`
+   - 不要使用对象格式：`{ ef: 100 }`
+
+3. **结果解析失败**
+   - Milvus 2.4.x 的 `results.results` 本身就是结果数组
+   - 每个元素包含 `score` 和 `text` 字段
+   - 不需要取 `results.results[0]`

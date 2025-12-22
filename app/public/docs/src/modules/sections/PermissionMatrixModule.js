@@ -1,4 +1,4 @@
-const { defineComponent } = Vue;
+const { defineComponent } = window.Vue || Vue;
 
 export default defineComponent({
   name: 'PermissionMatrixModule',

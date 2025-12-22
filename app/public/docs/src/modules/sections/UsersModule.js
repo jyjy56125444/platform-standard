@@ -1,6 +1,6 @@
 import ApiCard from '../components/ApiCard.js';
 
-const { defineComponent } = Vue;
+const { defineComponent } = window.Vue || Vue;
 
 export default defineComponent({
   name: 'UsersModule',

@@ -22,8 +22,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@langchain/core": "^0.3.79",
+    "@langchain/textsplitters": "^1.0.1",
+    "@zilliz/milvus2-sdk-node": "^2.6.5",
     "ali-oss": "^6.23.0",
     "bcryptjs": "^3.0.3",
+    "dashscope": "^1.0.1",
     "egg": "^3.0.0",
     "egg-mysql": "^3.0.0",
     "egg-redis": "^2.6.1",
@@ -31,7 +35,9 @@
     "egg-sequelize": "^5.2.0",
     "egg-swagger-doc": "^2.3.2",
     "jsonwebtoken": "^9.0.2",
+    "langchain": "^1.1.5",
     "mysql2": "^3.0.0",
+    "pdf-parse": "^2.4.5",
     "sequelize": "^6.0.0",
     "vue": "^3.5.22"
   },

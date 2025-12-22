@@ -6,12 +6,13 @@ import AppLogsModule from './sections/AppLogsModule.js';
 import MobileClientModule from './sections/MobileClientModule.js';
 import MobileAppsModule from './sections/MobileAppsModule.js';
 import MobileVersionsModule from './sections/MobileVersionsModule.js';
+import RagModule from './sections/RagModule.js';
 
-const { ref, computed, defineComponent, h } = Vue;
+const { ref, computed, defineComponent, h } = window.Vue || Vue;
 
 export default defineComponent({
   name: 'App',
-  components: { ApiCard, PermissionMatrixModule, UsersModule, LogsModule, MobileAppsModule, MobileVersionsModule, AppLogsModule, MobileClientModule },
+  components: { ApiCard, PermissionMatrixModule, UsersModule, LogsModule, MobileAppsModule, MobileVersionsModule, AppLogsModule, MobileClientModule, RagModule },
   setup(){
     const base = ref('http://localhost:7001');
     const token = ref('Bearer YOUR_TOKEN');
@@ -67,6 +68,31 @@ export default defineComponent({
       downloadUrl: 'https://oss.example.com/apps/packages/app-v2.0.3.apk'
     }, null, 2));
 
+    const askBody = ref(JSON.stringify({
+      question: '如何退出登录？',
+      stream: false,
+      sessionId: 123
+    }, null, 2));
+    const createSessionBody = ref(JSON.stringify({
+      title: '新会话'
+    }, null, 2));
+    const setRAGConfigBody = ref(JSON.stringify({
+      topK: 5,
+      similarityThreshold: 0.4,
+      llmTemperature: 0.7,
+      llmMaxTokens: 2000,
+      llmTopP: 0.8,
+      chunkMaxLength: 2048,
+      chunkOverlap: 100,
+      indexType: 'HNSW',
+      indexParams: { M: 16, efConstruction: 200 },
+      rerankEnabled: 0,
+      rerankModel: 'bge-reranker-base',
+      rerankTopK: 10,
+      status: 1,
+      remark: '配置备注'
+    }, null, 2));
+
     const full = (path)=> `${base.value || ''}${path}`;
     const tokenHeader = computed(()=> token.value || 'Bearer YOUR_TOKEN');
     const permissionMatrixOpen = ref(true);
@@ -76,8 +102,9 @@ export default defineComponent({
     const clientOpen = ref(true);
     const appsOpen = ref(true);
     const versionsOpen = ref(true);
+    const ragOpen = ref(true);
 
-    return { base, token, loginBody, createBody, updateBody, createAppBody, updateAppBody, createVersionBody, updateVersionBody, full, tokenHeader, permissionMatrixOpen, usersOpen, logsOpen, appLogsOpen, clientOpen, appsOpen, versionsOpen };
+    return { base, token, loginBody, createBody, updateBody, createAppBody, updateAppBody, createVersionBody, updateVersionBody, askBody, createSessionBody, setRAGConfigBody, full, tokenHeader, permissionMatrixOpen, usersOpen, logsOpen, appLogsOpen, clientOpen, appsOpen, versionsOpen, ragOpen };
   },
   template: `
   <div class="container">
@@ -185,6 +212,27 @@ export default defineComponent({
             <li><a href="#client-logs">客户端记录操作日志 /api/mobile/client/logs</a></li>
             <li><a href="#client-latest-version">获取最新版本信息 /api/mobile/client/apps/:appId/latest-version</a></li>
           </ul>
+
+          <h2 style="margin-top:16px;">
+            <a href="#rag-config-get" class="section-link">RAG 知识库</a>
+            <button class="collapse-btn" @click="ragOpen = !ragOpen" :aria-expanded="ragOpen">
+              {{ ragOpen ? '▾' : '▸' }}
+            </button>
+          </h2>
+          <ul class="nav" v-show="ragOpen">
+            <li><a href="#rag-config-get">查询应用 RAG 配置</a></li>
+            <li><a href="#rag-config-put">更新应用 RAG 配置</a></li>
+            <li><a href="#rag-config-delete">还原应用 RAG 配置</a></li>
+            <li><a href="#rag-documents-upload">上传文件至知识库</a></li>
+            <li><a href="#rag-collections-list">查询知识库集合列表</a></li>
+            <li><a href="#rag-collections-data">查询知识库文档</a></li>
+            <li><a href="#rag-collections-delete">删除知识库文档</a></li>
+            <li><a href="#rag-session-create">创建会话</a></li>
+            <li><a href="#rag-sessions-list">获取会话列表</a></li>
+            <li><a href="#rag-session-messages">获取会话对话列表</a></li>
+            <li><a href="#rag-session-delete">删除会话</a></li>
+            <li><a href="#rag-ask">知识库问答</a></li>
+          </ul>
         </div>
       </aside>
       <main>
@@ -242,6 +290,10 @@ export default defineComponent({
         <section style="margin-top:32px;">
           <h2 style="margin:0 0 16px;font-size:20px;font-weight:600;">移动端客户端接口</h2>
           <mobile-client-module :full="full" :tokenHeader="tokenHeader" />
+        </section>
+        <section style="margin-top:32px;">
+          <h2 style="margin:0 0 16px;font-size:20px;font-weight:600;">RAG 知识库</h2>
+          <rag-module :full="full" :tokenHeader="tokenHeader" :askBody="askBody" :createSessionBody="createSessionBody" :setRAGConfigBody="setRAGConfigBody" />
         </section>
       </main>
     </div>

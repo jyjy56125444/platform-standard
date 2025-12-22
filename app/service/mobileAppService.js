@@ -1,6 +1,7 @@
 'use strict';
 
 const Service = require('egg').Service;
+const PromptTemplates = require('../utils/promptTemplates');
 
 class MobileAppService extends Service {
   /**
@@ -44,6 +45,48 @@ class MobileAppService extends Service {
       const infoResult = await conn.insert('mobile_app_info', infoRow);
       if (!infoResult || infoResult.affectedRows !== 1) {
         throw new Error('插入应用扩展信息失败');
+      }
+
+      // 创建 RAG 默认配置
+      const defaultSeparators = JSON.stringify([
+        '\n\n\n', '\n\n', '\n', '。', '！', '？', '. ', '! ', '? ', ' ', '',
+      ]);
+      
+      // 从模板文件生成标准提示词（根据应用名称）
+      const appName = appData.appName || '该应用';
+      const systemPrompt = PromptTemplates.generateSystemPrompt(appName);
+      const userPromptTemplate = PromptTemplates.generateUserPromptTemplate(appName);
+
+      const ragConfigRow = {
+        APP_ID: appId,
+        MILVUS_COLLECTION: `rag_app_${appId}`,
+        VECTOR_DIMENSION: 1024,
+        EMBEDDING_MODEL: ctx.app.config.dashscope?.embeddingModel || 'text-embedding-v4',
+        LLM_MODEL: 'qwen-plus',
+        SYSTEM_PROMPT: systemPrompt,
+        USER_PROMPT_TEMPLATE: userPromptTemplate,
+        LLM_TEMPERATURE: 0.7,
+        LLM_MAX_TOKENS: 2000,
+        LLM_TOP_P: 0.8,
+        TOP_K: 5,
+        SIMILARITY_THRESHOLD: 0.4,
+        INDEX_TYPE: 'HNSW',
+        INDEX_PARAMS: null,
+        RERANK_ENABLED: 0,
+        RERANK_MODEL: null,
+        RERANK_TOP_K: 10,
+        RERANK_PARAMS: null,
+        CHUNK_MAX_LENGTH: 2048,
+        CHUNK_OVERLAP: 100,
+        CHUNK_SEPARATORS: defaultSeparators,
+        STATUS: 1,
+        CREATOR: creator || null,
+        UPDATER: creator || null,
+      };
+
+      const ragConfigResult = await conn.insert('rag_config', ragConfigRow);
+      if (!ragConfigResult || ragConfigResult.affectedRows !== 1) {
+        throw new Error('插入 RAG 默认配置失败');
       }
 
       await conn.commit();
@@ -234,7 +277,7 @@ class MobileAppService extends Service {
   }
 
   /**
-   * 删除应用（同时删除扩展信息、版本数据和应用用户关系）
+   * 删除应用（同时删除扩展信息、版本数据、应用用户关系、RAG 配置和 Milvus Collection）
    * @param {Number} id - 应用ID
    * @returns {Boolean} 是否删除成功
    */
@@ -252,10 +295,23 @@ class MobileAppService extends Service {
       // 清空应用用户关系
       await conn.delete('mobile_app_user', { APP_ID: id });
       
+      // 删除 RAG 配置
+      await conn.delete('rag_config', { APP_ID: id });
+      
       // 删除应用主表
       const appResult = await conn.delete('mobile_app', { APP_ID: id });
       
       await conn.commit();
+
+      // 删除 Milvus Collection（collection 名称固定格式：rag_app_${appId}）
+      const collectionName = `rag_app_${id}`;
+      try {
+        await ctx.service.langchain.milvusVectorStore.deleteCollection(collectionName);
+      } catch (error) {
+        // Milvus 删除失败不影响应用删除结果，只记录警告日志
+        ctx.logger.warn(`删除 Milvus Collection ${collectionName} 失败: ${error.message}`);
+      }
+
       return !!(appResult && appResult.affectedRows === 1);
     } catch (error) {
       await conn.rollback();
