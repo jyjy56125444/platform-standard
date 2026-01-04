@@ -391,6 +391,12 @@ class MilvusVectorStoreService extends Service {
     const client = this.getClient();
 
     try {
+      // 检查 Collection 是否存在
+      const hasCollection = await client.hasCollection({ collection_name: collectionName });
+      if (!hasCollection.value) {
+        throw new Error(`Collection ${collectionName} 不存在`);
+      }
+
       const limit = options.limit || 10;
       const offset = options.offset || 0;
       const expr = options.expr || null;
@@ -427,6 +433,10 @@ class MilvusVectorStoreService extends Service {
         data: formattedResults,
       };
     } catch (error) {
+      // 如果是集合不存在的错误，直接抛出
+      if (error.message && error.message.includes('不存在')) {
+        throw error;
+      }
       ctx.logger.error(`查询 Collection 数据失败:`, error);
       throw new Error(`查询 Collection 数据失败: ${error.message}`);
     }
@@ -443,6 +453,12 @@ class MilvusVectorStoreService extends Service {
     const client = this.getClient();
 
     try {
+      // 检查 Collection 是否存在
+      const hasCollection = await client.hasCollection({ collection_name: collectionName });
+      if (!hasCollection.value) {
+        throw new Error(`Collection ${collectionName} 不存在`);
+      }
+
       const params = {
         collection_name: collectionName,
       };
@@ -452,8 +468,14 @@ class MilvusVectorStoreService extends Service {
       }
 
       const result = await client.count(params);
-      return result.data || 0;
+      
+      // 返回统计数量（result.data 通常是数字）
+      return result?.data || 0;
     } catch (error) {
+      // 如果是集合不存在的错误，直接抛出
+      if (error.message && error.message.includes('不存在')) {
+        throw error;
+      }
       ctx.logger.error(`统计 Collection 文档数量失败:`, error);
       throw new Error(`统计 Collection 文档数量失败: ${error.message}`);
     }

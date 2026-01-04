@@ -22,6 +22,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@alicloud/credentials": "^2.4.4",
+    "@alicloud/docmind-api20220711": "^1.4.14",
+    "@alicloud/tea-util": "^1.4.11",
     "@langchain/core": "^0.3.79",
     "@langchain/textsplitters": "^1.0.1",
     "@zilliz/milvus2-sdk-node": "^2.6.5",

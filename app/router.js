@@ -81,5 +81,6 @@ module.exports = app => {
   router.get('/api/milvus/collections/:collectionName', controller.langchain.milvusController.getCollectionInfo); // 获取 Collection 详细信息
   router.get('/api/milvus/collections/:collectionName/data', controller.langchain.milvusController.queryCollection); // 查询 Collection 数据
   router.get('/api/milvus/collections/:collectionName/count', controller.langchain.milvusController.countCollection); // 统计 Collection 文档数量
+  router.delete('/api/milvus/collections/:collectionName', controller.langchain.milvusController.deleteCollection); // 删除 Collection（删除整个集合，包括所有数据）
   router.delete('/api/milvus/collections/:collectionName/data', controller.langchain.milvusController.deleteDocuments); // 删除 Collection 文档（支持 ids 或 expr）
 };

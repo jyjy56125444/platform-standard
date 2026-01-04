@@ -1,6 +1,7 @@
 'use strict';
 
 const Controller = require('egg').Controller;
+const { PermissionUtil } = require('../../utils/permission');
 
 /**
  * Milvus 向量库查询控制器
@@ -72,15 +73,16 @@ class MilvusController extends Controller {
    * 查询 Collection 数据
    * GET /api/milvus/collections/:collectionName/data
    * Query Parameters:
-   *   - limit: 返回数量限制（默认 10）
-   *   - offset: 偏移量（默认 0）
+   *   - page: 页码（默认 1）
+   *   - pageSize: 每页数量（默认 20）
    *   - expr: 过滤表达式（可选，如：id == 'xxx' 或 text like '%keyword%'）
    *   - outputFields: 输出字段列表，逗号分隔（默认 id,text,metadata）
    */
   async queryCollection() {
     const { ctx } = this;
+    const collectionName = ctx.params.collectionName;
+    
     try {
-      const collectionName = ctx.params.collectionName;
       if (!collectionName) {
         ctx.status = 400;
         ctx.body = {
@@ -90,15 +92,23 @@ class MilvusController extends Controller {
         return;
       }
 
-      const limit = Number(ctx.query.limit) || 10;
-      const offset = Number(ctx.query.offset) || 0;
+      // 分页参数
+      const page = Math.max(1, Number(ctx.query.page) || 1);
+      const pageSize = Math.min(100, Math.max(1, Number(ctx.query.pageSize) || 20)); // 最大 100，最小 1
+      const offset = (page - 1) * pageSize;
+      const limit = pageSize;
+
       const expr = ctx.query.expr || null;
       const outputFields = ctx.query.outputFields
         ? ctx.query.outputFields.split(',').map(f => f.trim())
         : undefined; // 使用 service 层的默认值（包含 vector）
 
+      // 获取总数（用于分页）
+      const total = await ctx.service.langchain.milvusVectorStore.countCollection(collectionName, expr);
+
+      // 查询数据
       const result = await ctx.service.langchain.milvusVectorStore.queryCollection(collectionName, {
-        limit: Math.min(limit, 100), // 最大限制 100
+        limit,
         offset,
         expr,
         outputFields,
@@ -107,9 +117,25 @@ class MilvusController extends Controller {
       ctx.body = {
         code: 200,
         message: 'success',
-        data: result,
+        data: {
+          list: result,
+          total,
+          page,
+          pageSize,
+        },
       };
     } catch (error) {
+      // 如果是集合不存在的错误，返回 404
+      if (error.message && error.message.includes('不存在')) {
+        ctx.status = 404;
+        ctx.body = {
+          code: 404,
+          message: `知识库 ${collectionName || '未知'} 不存在`,
+          error: error.message,
+        };
+        return;
+      }
+      
       ctx.logger.error('查询 Collection 数据失败:', error);
       ctx.status = 500;
       ctx.body = {
@@ -128,8 +154,9 @@ class MilvusController extends Controller {
    */
   async countCollection() {
     const { ctx } = this;
+    const collectionName = ctx.params.collectionName;
+    
     try {
-      const collectionName = ctx.params.collectionName;
       if (!collectionName) {
         ctx.status = 400;
         ctx.body = {
@@ -152,6 +179,17 @@ class MilvusController extends Controller {
         },
       };
     } catch (error) {
+      // 如果是集合不存在的错误，返回 404
+      if (error.message && error.message.includes('不存在')) {
+        ctx.status = 404;
+        ctx.body = {
+          code: 404,
+          message: `知识库 ${collectionName || '未知'} 不存在`,
+          error: error.message,
+        };
+        return;
+      }
+      
       ctx.logger.error('统计 Collection 文档数量失败:', error);
       ctx.status = 500;
       ctx.body = {
@@ -180,6 +218,23 @@ class MilvusController extends Controller {
           code: 400,
           message: 'collectionName 参数不能为空',
         };
+        return;
+      }
+
+      // 从 collectionName 提取 appId（格式：rag_app_${appId}）
+      const match = collectionName.match(/^rag_app_(\d+)$/);
+      if (!match) {
+        ctx.status = 400;
+        ctx.body = {
+          code: 400,
+          message: '无效的集合名称格式，集合名称应为 rag_app_${appId} 格式',
+        };
+        return;
+      }
+      const appId = Number(match[1]);
+
+      // 权限检查：只有超管和拥有应用权限的用户可以操作
+      if (!(await PermissionUtil.hasAppAccess(ctx, appId, '没有权限操作该应用'))) {
         return;
       }
 
@@ -247,6 +302,74 @@ class MilvusController extends Controller {
       ctx.body = {
         code: 500,
         message: '删除 Collection 文档失败',
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * 删除 Collection（删除整个集合，包括所有数据）
+   * DELETE /api/milvus/collections/:collectionName
+   * 注意：此操作会删除整个集合及其所有数据，请谨慎使用
+   */
+  async deleteCollection() {
+    const { ctx } = this;
+    try {
+      const collectionName = ctx.params.collectionName;
+      if (!collectionName) {
+        ctx.status = 400;
+        ctx.body = {
+          code: 400,
+          message: 'collectionName 参数不能为空',
+        };
+        return;
+      }
+
+      // 从 collectionName 提取 appId（格式：rag_app_${appId}）
+      const match = collectionName.match(/^rag_app_(\d+)$/);
+      if (!match) {
+        ctx.status = 400;
+        ctx.body = {
+          code: 400,
+          message: '无效的集合名称格式，集合名称应为 rag_app_${appId} 格式',
+        };
+        return;
+      }
+      const appId = Number(match[1]);
+
+      // 权限检查：只有超管和拥有应用权限的用户可以操作
+      if (!(await PermissionUtil.hasAppAccess(ctx, appId, '没有权限操作该应用'))) {
+        return;
+      }
+
+      const deleted = await ctx.service.langchain.milvusVectorStore.deleteCollection(collectionName);
+      
+      if (deleted) {
+        ctx.body = {
+          code: 200,
+          message: 'success',
+          data: {
+            collectionName,
+            deleted: true,
+          },
+        };
+      } else {
+        ctx.body = {
+          code: 200,
+          message: 'success',
+          data: {
+            collectionName,
+            deleted: false,
+            reason: 'Collection 不存在',
+          },
+        };
+      }
+    } catch (error) {
+      ctx.logger.error('删除 Collection 失败:', error);
+      ctx.status = 500;
+      ctx.body = {
+        code: 500,
+        message: '删除 Collection 失败',
         error: error.message,
       };
     }

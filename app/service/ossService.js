@@ -34,7 +34,7 @@ class OssService extends Service {
    * 生成文件路径
    * @param {String} filename 文件名
    * @param {Number} userId 用户ID（已废弃，保留以兼容现有调用）
-   * @param {String} type 文件类型：avatar|icon|package|other
+   * @param {String} type 文件类型：avatar|icon|package|rag-image|other
    * @returns {String} 文件路径
    */
   generateFilePath(filename, userId, type = 'other') {
@@ -45,10 +45,11 @@ class OssService extends Service {
     // 根据type生成不同的目录结构
     // 所有类型都使用扁平化目录结构，直接放在类型目录下
     const dirMap = {
-      avatar: 'avatars/',
-      icon: 'apps/icons/',
-      package: 'apps/packages/',
-      other: 'uploads/',
+      'avatar': 'avatars/',
+      'icon': 'apps/icons/',
+      'package': 'apps/packages/',
+      'rag-image': 'rag/images/',
+      'other': 'uploads/',
     };
     
     const baseDir = dirMap[type] || dirMap.other;
@@ -62,7 +63,7 @@ class OssService extends Service {
    * @param {Buffer|Stream} fileStream 文件流
    * @param {String} filename 原始文件名
    * @param {Number} userId 用户ID
-   * @param {String} type 文件类型：avatar|icon|package|other（可选，默认为other）
+   * @param {String} type 文件类型：avatar|icon|package|rag-image|other（可选，默认为other）
    * @returns {Promise<Object>} 上传结果，包含url和path
    */
   async uploadFile(fileStream, filename, userId, type = 'other') {

@@ -153,20 +153,21 @@ export default defineComponent({
       </section>
 
       <section id="upload">
-        <api-card method="POST" path="/api/upload" pill="post" title="统一文件上传" description="multipart/form-data 上传文件，支持多种类型：avatar（头像）、icon（应用图标）、package（安装包）、other（其他）。文件字段名：file，type参数可通过query、body或form-data传递。type=avatar时会自动更新当前用户头像。">
+        <api-card method="POST" path="/api/upload" pill="post" title="统一文件上传" description="multipart/form-data 上传文件，支持多种类型：avatar（头像）、icon（应用图标）、package（安装包）、rag-image（RAG知识库图片）、other（其他）。文件字段名：file，type参数可通过query、body或form-data传递。type=avatar时会自动更新当前用户头像。">
           <template #body>
 <pre><code>// form-data 格式
 file: [文件]
-type: avatar  // 或 icon、package、other
+type: avatar  // 或 icon、package、rag-image、other
 
 // 文件大小限制：
 // - avatar: 5MB
 // - icon: 2MB  
 // - package: 200MB
+// - rag-image: 5MB（RAG知识库图片）
 // - other: 20MB
 
 // 支持的文件格式：
-// - avatar/icon: .jpg, .jpeg, .png, .gif, .webp, .svg
+// - avatar/icon/rag-image: .jpg, .jpeg, .png, .gif, .webp, .svg
 // - package: .apk, .xapk
 // - other: 根据实际需求</code></pre>
           </template>
@@ -185,7 +186,12 @@ curl -X POST {{full('/api/upload')}} \
 # 上传APK安装包
 curl -X POST "{{full('/api/upload')}}?type=package" \
   -H "Authorization: {{tokenHeader}}" \
-  -F "file=@C:/path/to/app.apk"</code></pre>
+  -F "file=@C:/path/to/app.apk"
+
+# 上传RAG知识库图片（用于Markdown编辑器）
+curl -X POST "{{full('/api/upload')}}?type=rag-image" \
+  -H "Authorization: {{tokenHeader}}" \
+  -F "file=@C:/path/to/image.png"</code></pre>
           </template>
           <template #response>
 <pre><code>{

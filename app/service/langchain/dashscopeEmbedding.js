@@ -89,14 +89,21 @@ class DashScopeEmbedding extends Embeddings {
 
     // 文本模型使用批量接口，多模态模型逐条请求
     if (this.isTextModel) {
-      // text-embedding-v4 支持批量请求
+      // text-embedding-v4 支持批量请求，但最大只支持10条
+      const BATCH_SIZE = 10;
+      const allEmbeddings = [];
+      
+      // 分批处理
+      for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+        const batch = texts.slice(i, i + BATCH_SIZE);
+        
       try {
         const response = await this.callDashScopeAPI(
           '/services/embeddings/text-embedding/text-embedding',
           {
             model: this.model,
             input: {
-              texts: texts,
+                texts: batch,
             },
             parameters: {
               text_type: 'document', // 文档类型
@@ -110,20 +117,25 @@ class DashScopeEmbedding extends Embeddings {
         }
 
         const embeddings = response.output?.embeddings || [];
-        if (!Array.isArray(embeddings) || embeddings.length !== texts.length) {
-          throw new Error(`DashScope API 返回的向量数量不匹配: 期望${texts.length}，实际${embeddings.length}`);
+          if (!Array.isArray(embeddings) || embeddings.length !== batch.length) {
+            throw new Error(`DashScope API 返回的向量数量不匹配: 期望${batch.length}，实际${embeddings.length}`);
         }
 
-        return embeddings.map(item => {
+          const batchVectors = embeddings.map(item => {
           const vector = item.embedding;
           if (!Array.isArray(vector) || vector.length === 0) {
             throw new Error('DashScope API 返回的向量数据为空');
           }
           return vector;
         });
+          
+          allEmbeddings.push(...batchVectors);
       } catch (error) {
-        throw new Error(`批量文本向量化失败: ${error.message}`);
+          throw new Error(`批量文本向量化失败 (批次 ${Math.floor(i / BATCH_SIZE) + 1}): ${error.message}`);
+        }
       }
+      
+      return allEmbeddings;
     } else {
       // 多模态模型（qwen2.5-vl-embedding）逐条请求
       const results = [];

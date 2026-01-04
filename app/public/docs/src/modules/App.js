@@ -77,6 +77,8 @@ export default defineComponent({
       title: '新会话'
     }, null, 2));
     const setRAGConfigBody = ref(JSON.stringify({
+      embeddingModel: 'text-embedding-v4',
+      userPromptTemplate: '请根据文档内容回答用户问题。',
       topK: 5,
       similarityThreshold: 0.4,
       llmTemperature: 0.7,
@@ -89,7 +91,6 @@ export default defineComponent({
       rerankEnabled: 0,
       rerankModel: 'bge-reranker-base',
       rerankTopK: 10,
-      status: 1,
       remark: '配置备注'
     }, null, 2));
 
@@ -227,6 +228,7 @@ export default defineComponent({
             <li><a href="#rag-collections-list">查询知识库集合列表</a></li>
             <li><a href="#rag-collections-data">查询知识库文档</a></li>
             <li><a href="#rag-collections-delete">删除知识库文档</a></li>
+            <li><a href="#rag-collections-drop">删除知识库集合</a></li>
             <li><a href="#rag-session-create">创建会话</a></li>
             <li><a href="#rag-sessions-list">获取会话列表</a></li>
             <li><a href="#rag-session-messages">获取会话对话列表</a></li>

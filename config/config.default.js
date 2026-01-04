@@ -145,6 +145,22 @@ module.exports = appInfo => {
     endpoint: process.env.DASHSCOPE_LLM_ENDPOINT || '/chat/completions', // LLM API 端点路径
   };
 
+  // 阿里云文档解析（大模型版）配置（从环境变量读取）
+  config.documentMind = {
+    accessKeyId: process.env.DOCUMENT_MIND_ACCESS_KEY_ID || '', // AccessKey ID
+    accessKeySecret: process.env.DOCUMENT_MIND_ACCESS_KEY_SECRET || '', // AccessKey Secret
+    region: process.env.DOCUMENT_MIND_REGION || 'cn-hangzhou', // 区域
+    endpoint: process.env.DOCUMENT_MIND_ENDPOINT || 'docmind-api.cn-hangzhou.aliyuncs.com', // 访问的域名（不需要包含 http:// 或 https://）
+    pollInterval: parseInt(process.env.DOCUMENT_MIND_POLL_INTERVAL || '2000'), // 轮询间隔（毫秒），默认 5 秒
+    maxPollAttempts: parseInt(process.env.DOCUMENT_MIND_MAX_POLL_ATTEMPTS || '120'), // 最大轮询次数，默认 120 次（10 分钟）
+    layoutStepSize: parseInt(process.env.DOCUMENT_MIND_LAYOUT_STEP_SIZE || '10'), // 增量获取步长，默认 10
+    connectTimeout: parseInt(process.env.DOCUMENT_MIND_CONNECT_TIMEOUT || '60000'), // 连接超时时间（毫秒），默认 60 秒
+    readTimeout: parseInt(process.env.DOCUMENT_MIND_READ_TIMEOUT || '60000'), // 读取超时时间（毫秒），默认 60 秒
+    // OSS托管配置（可选，如果配置则解析结果会存储到指定的OSS Bucket，图片URL为永久链接）
+    ossBucket: process.env.DOCUMENT_MIND_OSS_BUCKET || '', // OSS Bucket名称，留空则使用默认存储（临时URL）
+    ossEndpoint: process.env.DOCUMENT_MIND_OSS_ENDPOINT || '', // OSS Endpoint，如：oss-cn-hangzhou.aliyuncs.com 或 oss-cn-hangzhou-internal.aliyuncs.com（内网，仅杭州同region支持）
+  };
+
   // add your user config here
   const userConfig = {
     // myAppName: 'egg',
