@@ -120,6 +120,19 @@ class RAGService extends Service {
       ];
     }
 
+    // 解析常用问题
+    let commonQuestions = null;
+    if (config.COMMON_QUESTIONS) {
+      try {
+        commonQuestions = typeof config.COMMON_QUESTIONS === 'string' 
+          ? JSON.parse(config.COMMON_QUESTIONS) 
+          : config.COMMON_QUESTIONS;
+        if (!Array.isArray(commonQuestions)) commonQuestions = null;
+      } catch (e) {
+        this.ctx.logger.warn('解析 COMMON_QUESTIONS 失败:', e.message);
+      }
+    }
+
     // 返回原始数据库字段名，由 controller 层统一使用 toCamelCaseKeys 处理
     // 保留业务逻辑：JSON 解析、默认值设置等
     return {
@@ -157,6 +170,8 @@ class RAGService extends Service {
       CHUNK_MAX_LENGTH: config.CHUNK_MAX_LENGTH || 2048,
       CHUNK_OVERLAP: config.CHUNK_OVERLAP || 100,
       CHUNK_SEPARATORS: separators,
+      // 常用问题配置
+      COMMON_QUESTIONS: commonQuestions,
       // 系统字段
       STATUS: config.STATUS || 1,
       REMARK: config.REMARK || null,
@@ -298,6 +313,49 @@ class RAGService extends Service {
         }
       }
 
+      // 常用问题配置
+      if (configData.commonQuestions !== undefined) {
+        if (configData.commonQuestions === null || configData.commonQuestions === '' || 
+            (Array.isArray(configData.commonQuestions) && configData.commonQuestions.length === 0)) {
+          // 还原为 NULL（null、空字符串或空数组都视为还原）
+          updateFields.push('COMMON_QUESTIONS = NULL');
+        } else if (Array.isArray(configData.commonQuestions)) {
+          // 验证数组长度（最多3个）
+          if (configData.commonQuestions.length > 3) {
+            throw new Error('常用问题最多只能设置3个');
+          }
+          // 验证并处理每个问题对象
+          const processedQuestions = configData.commonQuestions.map((q, index) => {
+            // 先检查对象和字段存在性
+            if (!q || typeof q !== 'object') {
+              throw new Error('常用问题格式错误：每个问题必须是一个对象');
+            }
+            if (q.question === undefined || q.question === null) {
+              throw new Error('常用问题格式错误：每个问题必须包含 question 字段');
+            }
+            if (typeof q.question !== 'string') {
+              throw new Error('常用问题格式错误：question 字段必须是字符串');
+            }
+            // 再检查内容是否为空
+            if (q.question.trim().length === 0) {
+              throw new Error('常用问题不能为空');
+            }
+            // 构建处理后的问题对象：question 必传，order 选填（未传时使用数组索引）
+            const processed = { question: q.question.trim() };
+            if (q.order !== undefined && q.order !== null) {
+              processed.order = Number(q.order);
+            } else {
+              processed.order = index + 1; // 从1开始
+            }
+            return processed;
+          });
+          updateFields.push('COMMON_QUESTIONS = ?');
+          updateValues.push(JSON.stringify(processedQuestions));
+        } else {
+          throw new Error('commonQuestions 必须是数组、null 或空数组');
+        }
+      }
+
       // 系统字段
       if (configData.status !== undefined) {
         updateFields.push('STATUS = ?');
@@ -382,6 +440,7 @@ class RAGService extends Service {
         'CHUNK_MAX_LENGTH = 2048',
         'CHUNK_OVERLAP = 100',
         'CHUNK_SEPARATORS = ?',
+        'COMMON_QUESTIONS = NULL',
         'STATUS = 1',
         'REMARK = NULL',
         'UPDATE_TIME = NOW()',

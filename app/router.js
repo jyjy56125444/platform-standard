@@ -62,6 +62,9 @@ module.exports = app => {
   // ========== 移动端客户端专用接口 ==========
   router.post('/api/mobile/client/logs', controller.clientController.createAppLog); // 客户端上报操作日志
   router.get('/api/mobile/client/apps/:appId/latest-version', controller.clientController.getLatestVersion); // 客户端获取某应用某平台最新版本
+  // RAG相关（移动端）
+  router.post('/api/mobile/client/rag/tickets', controller.clientController.obtainRagTicket); // 获取 RAG 访问票据
+  router.post('/api/mobile/client/rag/ask/:appId', controller.clientController.askRag); // 移动端 RAG 问答（使用 ticket）
 
   // ========== LangChain RAG 接口 ==========
   // 会话管理接口

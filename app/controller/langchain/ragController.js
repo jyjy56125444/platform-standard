@@ -132,7 +132,12 @@ class RAGController extends Controller {
    * PUT /api/rag/config/:appId
    * Body: { milvusCollection?, vectorDimension?, embeddingModel?, llmModel?, topK?, similarityThreshold?, 
    *         indexType?, indexParams?, rerankEnabled?, rerankModel?, rerankTopK?, rerankParams?,
-   *         chunkMaxLength?, chunkOverlap?, chunkSeparators?, status?, remark? }
+   *         chunkMaxLength?, chunkOverlap?, chunkSeparators?, commonQuestions?, status?, remark? }
+   * commonQuestions 格式：
+   * - 数组：最多3个，格式：[{question: "问题内容", order?: 1}, ...]
+   *   - question: 必传，问题内容（字符串）
+   *   - order: 选填，排序号（数字），不传时使用数组索引（从1开始）
+   * - null 或空数组：还原为系统默认（删除自定义常用问题）
    */
   async setRAGConfig() {
     const { ctx } = this;

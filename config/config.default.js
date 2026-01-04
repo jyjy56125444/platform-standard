@@ -161,6 +161,15 @@ module.exports = appInfo => {
     ossEndpoint: process.env.DOCUMENT_MIND_OSS_ENDPOINT || '', // OSS Endpoint，如：oss-cn-hangzhou.aliyuncs.com 或 oss-cn-hangzhou-internal.aliyuncs.com（内网，仅杭州同region支持）
   };
 
+  // RAG Ticket 配置（从环境变量读取）
+  config.ragTicket = {
+    // 默认过期时间（秒），默认 7200（2小时）
+    defaultExpireTime: parseInt(process.env.RAG_TICKET_EXPIRE_TIME || '7200'),
+    // 签名盐值（用于 HMAC 签名，必须与移动端保持一致）
+    // 生产环境必须通过环境变量 RAG_TICKET_SIGN_SECRET 配置
+    signSecret: process.env.RAG_TICKET_SIGN_SECRET || '',
+  };
+
   // add your user config here
   const userConfig = {
     // myAppName: 'egg',

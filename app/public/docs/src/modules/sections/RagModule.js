@@ -224,7 +224,7 @@ curl -X POST "{{full('/api/rag/documents/15')}}?stream=1" \
       "totalProcessed": 2,
       "skipped": 1,
       "failed": 0
-    }
+  }
   }
 }
 
@@ -405,7 +405,7 @@ curl -X GET "{{full('/api/milvus/collections/rag_app_15/data')}}?page=1&pageSize
       "limit": 10,
       "offset": 20,
       "data": [
-        {
+      {
           "id": "chunk_1767060626567_4",
           "text": "通过"ISV管理...",
           "metadata": {
@@ -422,7 +422,7 @@ curl -X GET "{{full('/api/milvus/collections/rag_app_15/data')}}?page=1&pageSize
             "chunkTotal": 7
           },
           "vector": "[1024 dimensions]"
-        }
+      }
       ]
     },
     "total": 23,
@@ -749,6 +749,9 @@ data: {"message":"stream start"}
 
 event: answer
 data: {"delta":"您","done":false}
+
+event: answer
+data: {"delta":"好","done":false}
 
 event: end
 data: {"done":true,"responseTime":1200}</code></pre>

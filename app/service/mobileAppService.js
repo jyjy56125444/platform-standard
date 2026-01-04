@@ -79,6 +79,7 @@ class MobileAppService extends Service {
         CHUNK_MAX_LENGTH: 2048,
         CHUNK_OVERLAP: 100,
         CHUNK_SEPARATORS: defaultSeparators,
+        COMMON_QUESTIONS: null,
         STATUS: 1,
         CREATOR: creator || null,
         UPDATER: creator || null,

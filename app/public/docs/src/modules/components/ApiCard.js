@@ -16,7 +16,11 @@ export default defineComponent({
     <div class="tip" v-if="description && !($slots.desc)">{{ description }}</div>
     <div class="tip" v-else><slot name="desc"></slot></div>
     <slot name="body"></slot>
-    <div class="tip">cURL</div>
+    <template v-if="$slots.code">
+      <div class="tip" style="margin-top:8px;">前端加密代码示例</div>
+      <slot name="code"></slot>
+    </template>
+    <div class="tip" style="margin-top:8px;">cURL</div>
     <slot name="curl"></slot>
     <template v-if="$slots.response">
       <div class="tip" style="margin-top:8px;">返回示例</div>

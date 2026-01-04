@@ -116,6 +116,8 @@ CREATE TABLE IF NOT EXISTS `rag_config` (
   `CHUNK_MAX_LENGTH` INT DEFAULT 2048 COMMENT '分块最大长度（字符数），默认2048',
   `CHUNK_OVERLAP` INT DEFAULT 100 COMMENT '分块重叠长度（字符数），默认100',
   `CHUNK_SEPARATORS` JSON DEFAULT NULL COMMENT '分隔符列表（JSON数组），如：["\\n\\n\\n", "\\n\\n", "\\n", "。", "！", "？", ". ", "! ", "? ", " ", ""]。NULL时使用默认分隔符',
+  -- 常用问题配置
+  `COMMON_QUESTIONS` JSON DEFAULT NULL COMMENT '常用问题列表（JSON数组），格式：[{"question": "问题内容", "order": 1}, ...]，最多3个。question必传，order选填（不传时使用数组索引），NULL时使用系统默认',
   -- 系统字段
   `STATUS` INT DEFAULT 1 COMMENT '配置状态：1-启用，0-禁用',
   `REMARK` VARCHAR(500) DEFAULT NULL COMMENT '备注说明',
@@ -181,3 +183,22 @@ CREATE TABLE IF NOT EXISTS `rag_session_message` (
     FOREIGN KEY (`APP_ID`) REFERENCES `mobile_app`(`APP_ID`)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG 会话消息表';
+
+-- App Ticket 表（移动端访问凭据，仅用于统计和审计）
+-- 注意：ticket 的有效性和过期由 Redis TTL 管理，MySQL 仅用于记录
+CREATE TABLE IF NOT EXISTS `mobile_app_ticket` (
+  `ID` INT NOT NULL AUTO_INCREMENT COMMENT '记录ID',
+  `APP_ID` INT NOT NULL COMMENT '应用ID，对应 mobile_app.APP_ID',
+  `APP_USER_ID` VARCHAR(100) NOT NULL COMMENT '应用用户标识（可以是 UUID 或 int 形式）',
+  `PLATFORM_NAME` VARCHAR(100) NOT NULL COMMENT '平台名称',
+  `TICKET` VARCHAR(64) NOT NULL COMMENT '凭据字符串（唯一）',
+  `CLIENT_IP` VARCHAR(45) DEFAULT NULL COMMENT '获取票据时的IP',
+  `CREATE_TIME` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`ID`),
+  UNIQUE KEY `uk_ticket` (`TICKET`),
+  INDEX `idx_app_user_platform` (`APP_ID`, `APP_USER_ID`, `PLATFORM_NAME`),
+  INDEX `idx_create_time` (`CREATE_TIME`),
+  CONSTRAINT `fk_mobile_app_ticket_app`
+    FOREIGN KEY (`APP_ID`) REFERENCES `mobile_app`(`APP_ID`)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='App Ticket 表（移动端访问凭据，仅用于统计和审计）';

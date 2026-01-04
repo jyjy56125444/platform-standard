@@ -317,13 +317,13 @@ class MilvusVectorStoreService extends Service {
     const { ctx } = this;
     const client = this.getClient();
 
-    try {
-      await client.delete({
-        collection_name: collectionName,
-        filter: expr,
-      });
+      try {
+        await client.delete({
+          collection_name: collectionName,
+          filter: expr,
+        });
 
-      ctx.logger.info(`成功通过表达式删除文档，Collection: ${collectionName}, Expr: ${expr}`);
+        ctx.logger.info(`成功通过表达式删除文档，Collection: ${collectionName}, Expr: ${expr}`);
     } catch (error) {
       ctx.logger.error(`通过表达式删除文档失败:`, error);
       throw new Error(`通过表达式删除文档失败: ${error.message}`);
