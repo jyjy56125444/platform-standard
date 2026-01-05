@@ -259,6 +259,121 @@ class ClientController extends Controller {
   }
 
   /**
+   * 固定下载地址（专供二维码使用，无需 ticket 验证）
+   * GET /api/mobile/client/apps/:appId/download?versionType=1
+   * 说明：查询最新版本并从OSS代理下载，二维码使用此固定地址，永远不变
+   * 注意：由于OSS对APK文件有安全限制，不能直接重定向，需要代理下载
+   */
+  async downloadApp() {
+    const { ctx } = this;
+    try {
+      const { appId } = ctx.params;
+      const { versionType } = ctx.query;
+
+      const appIdNum = parseInt(appId, 10);
+      if (!appIdNum || Number.isNaN(appIdNum)) {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: 'appId 为必填且必须是数字' };
+        return;
+      }
+
+      if (versionType === undefined || versionType === null || versionType === '') {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: 'versionType 为必填参数' };
+        return;
+      }
+
+      const versionTypeNum = parseInt(versionType, 10);
+      if (!versionTypeNum || Number.isNaN(versionTypeNum)) {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: 'versionType 必须是数字' };
+        return;
+      }
+
+      // 查询最新版本
+      const latest = await ctx.service.mobileVersionService.getLatestByAppAndType(appIdNum, versionTypeNum);
+      if (!latest) {
+        ctx.status = 404;
+        ctx.body = { code: 404, message: '未找到对应平台的版本信息' };
+        return;
+      }
+
+      // 检查下载地址是否存在
+      if (!latest.DOWNLOAD_URL || latest.DOWNLOAD_URL.trim().length === 0) {
+        ctx.status = 404;
+        ctx.body = { code: 404, message: '该版本未配置下载地址' };
+        return;
+      }
+
+      // 从OSS URL中提取文件路径
+      const filePath = ctx.service.ossService.extractPathFromUrl(latest.DOWNLOAD_URL);
+      if (!filePath) {
+        ctx.status = 500;
+        ctx.body = { code: 500, message: '无法解析下载地址' };
+        return;
+      }
+
+      // 从OSS读取文件内容
+      const { buffer, res } = await ctx.service.ossService.getFileContent(filePath);
+
+      // 监听 socket 的错误事件（TCP 层），过滤客户端提前断开连接的错误
+      // 移动浏览器在开始下载后可能会关闭 HTTP 连接，这是正常行为，不应该记录为错误
+      if (ctx.res.socket) {
+        const socketErrorHandler = err => {
+          if (err.code === 'ECONNRESET' && ctx.res.headersSent) {
+            // 不记录为错误，静默处理
+            return;
+          }
+        };
+        // 移除 socket 上可能存在的 error 监听器
+        ctx.res.socket.removeAllListeners('error');
+        ctx.res.socket.on('error', socketErrorHandler);
+        
+        // 清理 socket 错误处理器
+        ctx.res.once('close', () => {
+          if (ctx.res.socket) {
+            ctx.res.socket.removeListener('error', socketErrorHandler);
+          }
+        });
+      }
+      
+      // 设置响应头
+      const filename = latest.DOWNLOAD_URL.split('/').pop() || `app_${appIdNum}_v${latest.VERSION}.apk`;
+      ctx.set('Content-Type', res.headers['content-type'] || 'application/vnd.android.package-archive');
+      ctx.set('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+      
+      // 设置 Content-Length（使用实际 buffer 长度，更可靠）
+      const contentLength = res.headers['content-length'] || buffer.length;
+      if (contentLength) {
+        ctx.set('Content-Length', String(contentLength));
+      }
+      
+      // 如果有缓存控制头，也传递
+      if (res.headers['cache-control']) {
+        ctx.set('Cache-Control', res.headers['cache-control']);
+      }
+      if (res.headers['etag']) {
+        ctx.set('ETag', res.headers['etag']);
+      }
+
+      // 返回文件 Buffer
+      ctx.body = buffer;
+    } catch (error) {
+      ctx.logger.error('客户端下载应用失败:', error);
+      
+      // 只有在响应头未发送时才返回错误响应
+      if (!ctx.res.headersSent) {
+        ctx.status = 500;
+        ctx.body = {
+          code: 500,
+          message: '下载应用失败',
+          error: error.message,
+        };
+      }
+    }
+  }
+
+  /**
    * 移动端 RAG 问答（使用 ticket 验证）
    * POST /api/mobile/client/rag/ask/:appId
    * Header: X-App-Ticket: <ticket> 或 Query: ?ticket=<ticket>
@@ -373,6 +488,67 @@ class ClientController extends Controller {
         ctx.status = 500;
         ctx.body = { code: 500, message: 'RAG 问答失败', error: error.message };
       }
+    }
+  }
+
+  /**
+   * 获取某应用的常见问题列表（移动端）
+   * GET /api/mobile/client/rag/common-questions/:appId
+   * Header: X-App-Ticket: <ticket> 或 Query: ?ticket=<ticket>
+   * 说明：移动端使用 ticket 访问此接口，获取该应用的常见问题列表
+   */
+  async getCommonQuestions() {
+    const { ctx } = this;
+    try {
+      const appId = Number(ctx.params.appId);
+
+      // 验证 appId
+      if (!appId || !Number.isFinite(appId)) {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: 'appId 参数无效' };
+        return;
+      }
+
+      // 提取 ticket（优先从 Header 获取，其次从 Query 获取）
+      const ticket = ctx.get('x-app-ticket') || ctx.query.ticket;
+      if (!ticket || typeof ticket !== 'string') {
+        ctx.status = 401;
+        ctx.body = { code: 401, message: '未提供 ticket，请先获取 ticket' };
+        return;
+      }
+
+      // 验证 ticket
+      const validation = await ctx.service.ragTicketService.validateTicket(ticket, appId);
+      if (!validation.valid) {
+        ctx.status = 401;
+        ctx.body = { code: 401, message: `ticket 验证失败: ${validation.reason}` };
+        return;
+      }
+
+      // 获取 RAG 配置
+      const config = await ctx.service.langchain.ragService.getRAGConfig(appId);
+      
+      // 获取常见问题，如果没有则返回空数组
+      let commonQuestions = config.COMMON_QUESTIONS;
+      if (!commonQuestions || !Array.isArray(commonQuestions)) {
+        commonQuestions = [];
+      }
+
+      ctx.body = {
+        code: 200,
+        message: 'success',
+        data: {
+          commonQuestions: ctx.app.utils.case.toCamelCaseKeys(commonQuestions),
+        },
+      };
+    } catch (error) {
+      ctx.logger.error('获取常见问题列表失败:', error);
+      ctx.status = 500;
+      ctx.body = {
+        code: 500,
+        message: '获取常见问题列表失败',
+        error: error.message,
+      };
     }
   }
 }

@@ -142,6 +142,114 @@ class OssService extends Service {
       return false;
     }
   }
+
+  /**
+   * 从OSS URL中提取文件路径
+   * @param {String} url OSS文件URL
+   * @returns {String} 文件路径
+   */
+  extractPathFromUrl(url) {
+    if (!url) {
+      return null;
+    }
+
+    try {
+      const urlObj = new URL(url);
+      // 移除开头的斜杠
+      return urlObj.pathname.substring(1);
+    } catch (error) {
+      // 如果不是完整URL，尝试从路径中提取
+      // 例如：https://bucket.oss-cn-hangzhou.aliyuncs.com/apps/packages/file.apk
+      // 或者：apps/packages/file.apk
+      const match = url.match(/\/apps\/packages\/.+/) || 
+                    url.match(/apps\/packages\/.+/) ||
+                    url.match(/\/avatars\/.+/) ||
+                    url.match(/avatars\/.+/) ||
+                    url.match(/\/uploads\/.+/) ||
+                    url.match(/uploads\/.+/);
+      if (match) {
+        return match[0].replace(/^\//, '');
+      }
+      return null;
+    }
+  }
+
+  /**
+   * 从OSS读取文件内容
+   * @param {String} filePath 文件路径（OSS中的路径，如 apps/packages/file.apk）
+   * @returns {Promise<Object>} 包含文件Buffer和元数据的对象 { buffer, res }
+   * @description 优先使用 content（Buffer），如果返回的是 Stream 则转换为 Buffer
+   */
+  async getFileContent(filePath) {
+    if (!filePath) {
+      throw new Error('文件路径不能为空');
+    }
+
+    const client = this.getClient();
+    try {
+      // 使用 get() 方法，返回 { content, res }
+      // content 通常是 Buffer，也可能是 Stream
+      const result = await client.get(filePath);
+      
+      // 优先使用 content（Buffer）
+      if (result.content) {
+        if (Buffer.isBuffer(result.content)) {
+          return {
+            buffer: result.content,
+            res: result.res || {},
+          };
+        }
+        
+        // 如果 content 是 Stream，转换为 Buffer
+        if (typeof result.content.on === 'function') {
+          const chunks = [];
+          return new Promise((resolve, reject) => {
+            result.content.on('data', chunk => {
+              chunks.push(chunk);
+            });
+            result.content.on('end', () => {
+              const buffer = Buffer.concat(chunks);
+              resolve({
+                buffer,
+                res: result.res || {},
+              });
+            });
+            result.content.on('error', error => {
+              this.ctx.logger.error('OSS读取文件流失败:', error);
+              reject(new Error(`读取文件流失败: ${error.message}`));
+            });
+          });
+        }
+      }
+      
+      // 兼容旧版本 SDK：如果返回的是 stream
+      if (result.stream && typeof result.stream.on === 'function') {
+        const chunks = [];
+        return new Promise((resolve, reject) => {
+          result.stream.on('data', chunk => {
+            chunks.push(chunk);
+          });
+          result.stream.on('end', () => {
+            const buffer = Buffer.concat(chunks);
+            resolve({
+              buffer,
+              res: result.res || {},
+            });
+          });
+          result.stream.on('error', error => {
+            this.ctx.logger.error('OSS读取文件流失败:', error);
+            reject(new Error(`读取文件流失败: ${error.message}`));
+          });
+        });
+      }
+      
+      // 如果都不匹配，抛出错误
+      throw new Error(`无法从OSS读取文件：返回结构异常`);
+    } catch (error) {
+      this.ctx.logger.error('OSS读取文件失败:', error);
+      throw new Error(`读取文件失败: ${error.message}`);
+    }
+  }
 }
 
 module.exports = OssService;

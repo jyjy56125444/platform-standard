@@ -210,9 +210,11 @@ export default defineComponent({
             </button>
           </h2>
           <ul class="nav" v-show="clientOpen">
-            <li><a href="#client-ticket">获取应用访问票据 /api/mobile/client/rag/tickets/:appId</a></li>
+            <li><a href="#client-ticket">获取应用访问票据 /api/mobile/client/rag/tickets</a></li>
             <li><a href="#client-logs">客户端记录操作日志 /api/mobile/client/logs</a></li>
             <li><a href="#client-latest-version">获取最新版本信息 /api/mobile/client/apps/:appId/latest-version</a></li>
+            <li><a href="#client-download">固定下载地址 /api/mobile/client/apps/:appId/download</a></li>
+            <li><a href="#client-rag-common-questions">获取常见问题列表 /api/mobile/client/rag/common-questions/:appId</a></li>
             <li><a href="#client-rag-ask">移动端 RAG 问答 /api/mobile/client/rag/ask/:appId</a></li>
           </ul>
 

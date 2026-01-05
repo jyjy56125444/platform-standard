@@ -193,6 +193,108 @@ function generateSignatureWithCryptoJS(appId, appUserId, secret) {
         </api-card>
       </section>
 
+      <section id="client-download">
+        <api-card
+          method="GET"
+          path="/api/mobile/client/apps/:appId/download"
+          pill="get"
+          title="固定下载地址（专供二维码使用）">
+          <template #desc>
+            <p>专供二维码使用的固定下载地址接口，无需 ticket 验证。该接口会根据 appId 和 versionType 查询最新版本，并从 OSS 代理下载文件。</p>
+            <p><strong>使用场景：</strong>生成二维码时使用此固定地址，即使版本更新，二维码地址也无需改变，始终指向最新版本的下载地址。</p>
+            <p><strong>说明：</strong>由于 OSS 对 APK 文件有安全限制（不允许通过 OSS endpoint 直接下载），此接口采用代理下载方式，后端从 OSS 读取文件流并返回给客户端。浏览器会直接开始下载文件。</p>
+          </template>
+          <template #curl>
+<pre><code># 直接访问（浏览器会自动下载文件）
+curl -L -X GET "{{full('/api/mobile/client/apps/1/download')}}?versionType=1" -o app.apk
+
+# 查看响应头
+curl -I -X GET "{{full('/api/mobile/client/apps/1/download')}}?versionType=1"</code></pre>
+          </template>
+          <template #response>
+<pre><code># 成功响应：直接返回文件流
+HTTP/1.1 200 OK
+Content-Type: application/vnd.android.package-archive
+Content-Disposition: attachment; filename="app-v2.0.2.apk"
+Content-Length: 55234567
+
+[文件二进制数据...]
+
+# 如果未找到版本信息，返回 JSON
+{
+  "code": 404,
+  "message": "未找到对应平台的版本信息"
+}
+
+# 如果版本未配置下载地址，返回 JSON
+{
+  "code": 404,
+  "message": "该版本未配置下载地址"
+}
+
+# 如果无法解析下载地址，返回 JSON
+{
+  "code": 500,
+  "message": "无法解析下载地址"
+}</code></pre>
+          </template>
+        </api-card>
+      </section>
+
+      <section id="client-rag-common-questions">
+        <api-card
+          method="GET"
+          path="/api/mobile/client/rag/common-questions/:appId"
+          pill="get"
+          title="获取常见问题列表">
+          <template #desc>
+            <p>移动端专用接口，用于获取指定应用的常见问题列表。前端可以使用这些常见问题作为快捷选项，方便用户快速提问。</p>
+            <p><strong>认证方式：</strong>需要在 Header 中传入 <code>X-App-Ticket</code> 或在 Query 参数中传入 <code>ticket</code>。ticket 通过"获取应用访问票据"接口获取。</p>
+            <p><strong>说明：</strong>如果应用未配置自定义常见问题，则返回空数组。</p>
+          </template>
+          <template #curl>
+<pre><code># 使用 Header 传递 ticket
+curl -X GET "{{full('/api/mobile/client/rag/common-questions/16')}}" \
+  -H "X-App-Ticket: app_ticket_xxxx..."
+
+# 使用 Query 参数传递 ticket
+curl -X GET "{{full('/api/mobile/client/rag/common-questions/16')}}?ticket=app_ticket_xxxx..."</code></pre>
+          </template>
+          <template #response>
+<pre><code># 有配置常见问题
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "commonQuestions": [
+      {
+        "question": "简要介绍一下这个app",
+        "order": 1
+      },
+      {
+        "question": "如何使用这个功能？",
+        "order": 2
+      },
+      {
+        "question": "常见问题解答",
+        "order": 3
+      }
+    ]
+  }
+}
+
+# 未配置常见问题（返回空数组）
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "commonQuestions": []
+  }
+}</code></pre>
+          </template>
+        </api-card>
+      </section>
+
       <section id="client-rag-ask">
         <api-card
           method="POST"

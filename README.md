@@ -419,3 +419,92 @@ config.milvus = {
    - Milvus 2.4.x 的 `results.results` 本身就是结果数组
    - 每个元素包含 `score` 和 `text` 字段
    - 不需要取 `results.results[0]`
+
+## 文件下载中的 ECONNRESET 错误处理
+
+### 问题描述
+
+在移动端文件下载场景中（特别是 APK 文件），经常会出现 `ECONNRESET` 错误被记录到日志中，即使下载已经成功完成。这是因为：
+
+1. **移动浏览器的行为**：移动浏览器（特别是非 WiFi 环境）在开始下载后可能会主动关闭 HTTP 连接，这是正常行为。
+2. **错误触发位置**：`ECONNRESET` 错误通常在 **TCP 层（socket）** 触发，而不是在 HTTP 响应流层。
+3. **误报问题**：虽然下载已经成功，但框架的默认错误处理器会将这些连接重置记录为错误日志。
+
+### 解决方案
+
+**核心思路**：在 TCP 层（socket）监听错误事件，过滤掉已发送响应头后的 `ECONNRESET` 错误。
+
+#### 实现代码
+
+```javascript
+// app/controller/clientController.js
+async downloadApp() {
+  const { ctx } = this;
+  try {
+    // ... 文件读取逻辑 ...
+    
+    // 监听 socket 的错误事件（TCP 层），过滤客户端提前断开连接的错误
+    // 移动浏览器在开始下载后可能会关闭 HTTP 连接，这是正常行为，不应该记录为错误
+    if (ctx.res.socket) {
+      const socketErrorHandler = err => {
+        if (err.code === 'ECONNRESET' && ctx.res.headersSent) {
+          // 不记录为错误，静默处理
+          return;
+        }
+      };
+      // 移除 socket 上可能存在的 error 监听器
+      ctx.res.socket.removeAllListeners('error');
+      ctx.res.socket.on('error', socketErrorHandler);
+      
+      // 清理 socket 错误处理器
+      ctx.res.once('close', () => {
+        if (ctx.res.socket) {
+          ctx.res.socket.removeListener('error', socketErrorHandler);
+        }
+      });
+    }
+    
+    // 设置响应头
+    ctx.set('Content-Type', 'application/vnd.android.package-archive');
+    ctx.set('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    // 返回文件 Buffer
+    ctx.body = buffer;
+  } catch (error) {
+    ctx.logger.error('客户端下载应用失败:', error);
+    if (!ctx.res.headersSent) {
+      ctx.status = 500;
+      ctx.body = { code: 500, message: '下载应用失败', error: error.message };
+    }
+  }
+}
+```
+
+### 关键点
+
+1. **监听位置**：必须在 **socket 层**（`ctx.res.socket`）监听错误，而不是响应流层（`ctx.res`）。
+2. **判断条件**：只有当 `err.code === 'ECONNRESET'` 且 `ctx.res.headersSent === true` 时才静默处理。
+3. **清理监听器**：在响应关闭时清理 socket 错误监听器，避免内存泄漏。
+4. **移除旧监听器**：使用 `removeAllListeners('error')` 移除可能存在的默认错误监听器。
+
+### 为什么不在其他层处理？
+
+经过测试验证：
+
+- ❌ **HTTP 响应流层**（`ctx.res.on('error')`）：无法捕获 TCP 层的 `ECONNRESET` 错误
+- ❌ **应用层错误监听**（`app.on('error')`）：无法在错误传播前拦截
+- ❌ **配置层错误处理**（`config.onerror`）：无法在错误记录前过滤
+- ❌ **Catch 块处理**：错误已经在 socket 层触发并记录，catch 块无法阻止
+- ✅ **Socket 层监听**（`ctx.res.socket.on('error')`）：**唯一有效**的解决方案
+
+### 适用场景
+
+- 移动端文件下载（APK、IPA 等）
+- 大文件流式传输
+- 客户端可能在下载开始后主动断开连接的场景
+
+### 注意事项
+
+- 只过滤 `ECONNRESET` 且已发送响应头的情况，其他错误仍需正常记录
+- 确保在设置响应头**之前**就设置 socket 错误监听器
+- 记得在响应关闭时清理监听器，避免内存泄漏

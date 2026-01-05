@@ -52,6 +52,11 @@ export default defineComponent({
     "chunkMaxLength": 2048,           // 分块最大长度（字符数），默认2048
     "chunkOverlap": 100,              // 分块重叠长度（字符数），默认100
     "chunkSeparators": ["\\n\\n\\n", "\\n\\n", "\\n", "。", "！", "？"], // 分隔符列表（JSON数组），NULL时使用默认分隔符
+    "commonQuestions": [              // 常用问题列表（JSON数组），最多3个，NULL时表示未配置
+      {"question": "简要介绍一下这个app", "order": 1},
+      {"question": "AQI等级是如何定义的？", "order": 2},
+      {"question": "怎么更换绑定邮箱", "order": 3}
+    ],
     "status": 1,                      // 配置状态（1-启用，0-禁用）
     "remark": null,                   // 备注说明
     "createTime": "2024-01-01 10:00:00", // 创建时间
@@ -89,6 +94,11 @@ export default defineComponent({
   "rerankEnabled": 0,                    // 是否启用Rerank重排序（1-启用，0-禁用）
   "rerankModel": "bge-reranker-base",   // Rerank模型名称（如：bge-reranker-base）
   "rerankTopK": 10,                     // Rerank的Top K数量，默认10
+  "commonQuestions": [                  // 常用问题列表（JSON数组），最多3个。格式：[{question: "问题内容", order?: 1}, ...]，question必传，order选填（不传时使用数组索引从1开始）。传null或空数组可还原为NULL
+    {"question": "简要介绍一下这个app", "order": 1},
+    {"question": "AQI等级是如何定义的？", "order": 2},
+    {"question": "怎么更换绑定邮箱", "order": 3}
+  ],
   "remark": "配置备注"                    // 备注说明
   // 注意：status 字段不允许修改
 }</code></pre>
