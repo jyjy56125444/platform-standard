@@ -65,7 +65,9 @@ export default defineComponent({
       version: '2.0.3-hotfix',
       versionCode: 203,
       comment: '优化启动速度并修复崩溃问题',
-      downloadUrl: 'https://oss.example.com/apps/packages/app-v2.0.3.apk'
+      downloadSize: '53.1MB',
+      downloadUrl: 'https://oss.example.com/apps/packages/app-v2.0.3.apk',
+      downloadScanImg: 'https://oss.example.com/apps/packages/app-v2.0.3-qrcode.png'
     }, null, 2));
 
     const askBody = ref(JSON.stringify({

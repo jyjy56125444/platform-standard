@@ -200,25 +200,47 @@ function generateSignatureWithCryptoJS(appId, appUserId, secret) {
           pill="get"
           title="固定下载地址（专供二维码使用）">
           <template #desc>
-            <p>专供二维码使用的固定下载地址接口，无需 ticket 验证。该接口会根据 appId 和 versionType 查询最新版本，并从 OSS 代理下载文件。</p>
+            <p>专供二维码使用的固定下载地址接口，无需 ticket 验证。该接口会根据 appId 和 versionType 查询最新版本，并根据平台类型采用不同的下载方式。</p>
             <p><strong>使用场景：</strong>生成二维码时使用此固定地址，即使版本更新，二维码地址也无需改变，始终指向最新版本的下载地址。</p>
-            <p><strong>说明：</strong>由于 OSS 对 APK 文件有安全限制（不允许通过 OSS endpoint 直接下载），此接口采用代理下载方式，后端从 OSS 读取文件流并返回给客户端。浏览器会直接开始下载文件。</p>
+            <p><strong>平台行为说明：</strong></p>
+            <ul>
+              <li><strong>Android (versionType=1)：</strong>从 OSS 代理下载 APK 文件。由于 OSS 对 APK 文件有安全限制（不允许通过 OSS endpoint 直接下载），此接口采用代理下载方式，后端从 OSS 读取文件流并返回给客户端。浏览器会直接开始下载文件。</li>
+              <li><strong>非 Android 平台（如 iOS、鸿蒙、各类 H5 / 小程序 等）：</strong>统一 302 重定向到 <code>DOWNLOAD_URL</code> 指向的地址。例如：
+                <ul>
+                  <li>iOS：App Store 链接（如：<code>https://apps.apple.com/us/app/xxx/id123456</code>）</li>
+                  <li>鸿蒙：鸿蒙应用市场链接</li>
+                  <li>H5 / 小程序：H5 页面地址或小程序唤起链接</li>
+                </ul>
+              </li>
+            </ul>
+            <p><strong>注意：</strong>不同平台使用同一个接口路径，通过 <code>versionType</code> 参数区分。建议为每个平台生成独立的二维码。</p>
           </template>
           <template #curl>
-<pre><code># 直接访问（浏览器会自动下载文件）
-curl -L -X GET "{{full('/api/mobile/client/apps/1/download')}}?versionType=1" -o app.apk
+<pre><code># Android 平台：直接访问（浏览器会自动下载文件）
+curl -L -X GET "http://localhost:7001/api/mobile/client/apps/1/download?versionType=1"
 
-# 查看响应头
-curl -I -X GET "{{full('/api/mobile/client/apps/1/download')}}?versionType=1"</code></pre>
+# iOS 平台：查看重定向（会跳转到 App Store）
+curl -I -X GET "http://localhost:7001/api/mobile/client/apps/1/download?versionType=2"
+
+# 鸿蒙平台：查看重定向（会跳转到鸿蒙应用市场）
+curl -I -X GET "http://localhost:7001/api/mobile/client/apps/1/download?versionType=4"
+
+# H5/小程序平台：重定向访问（会跳转到页面地址或小程序唤起链接）
+curl -I -X GET "http://localhost:7001/api/mobile/client/apps/1/download?versionType=8"</code></pre>
           </template>
           <template #response>
-<pre><code># 成功响应：直接返回文件流
+<pre><code># Android 平台成功响应：直接返回文件流
 HTTP/1.1 200 OK
 Content-Type: application/vnd.android.package-archive
 Content-Disposition: attachment; filename="app-v2.0.2.apk"
 Content-Length: 55234567
 
 [文件二进制数据...]
+
+# 非 Android 平台成功响应：302 重定向（iOS / 鸿蒙 / H5 / 小程序等）
+HTTP/1.1 302 Found
+Location: https://apps.apple.com/us/app/xxx/id123456
+Content-Length: 0
 
 # 如果未找到版本信息，返回 JSON
 {
@@ -232,11 +254,19 @@ Content-Length: 55234567
   "message": "该版本未配置下载地址"
 }
 
-# 如果无法解析下载地址，返回 JSON
+# Android 平台：如果无法解析下载地址，返回 JSON
 {
   "code": 500,
-  "message": "无法解析下载地址"
-}</code></pre>
+  "message": "无法解析下载地址，请确保 DOWNLOAD_URL 是有效的 OSS 地址"
+}
+
+# iOS/鸿蒙平台：如果下载地址格式无效，返回 JSON
+{
+  "code": 400,
+  "message": "下载地址格式无效，请确保是完整的 URL"
+}
+
+# （当前实现中，所有有效的平台类型都会根据 DOWNLOAD_URL 正常处理；仅当 versionType 非数字或版本记录不存在时才会返回 4xx/5xx 错误）</code></pre>
           </template>
         </api-card>
       </section>

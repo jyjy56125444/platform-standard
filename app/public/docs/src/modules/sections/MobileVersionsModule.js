@@ -94,8 +94,22 @@ export default defineComponent({
               <strong>versionType 说明：</strong><code>versionType</code> 仅支持传单个平台整数，并必须属于应用已支持的平台集合（即 <code>(appType & versionType) != 0</code>）。平台枚举：1-Android、2-iOS、4-鸿蒙、8-微信H5、16-钉钉H5、32-独立网页H5、64-微信小程序、128-钉钉小程序。
             </p>
             <p>
-              <strong>必填字段与唯一约束：</strong>接口请求体中 <code>versionType</code>、<code>version</code>、<code>versionCode</code> 为必填字段；同一应用（<code>APP_ID</code>）与平台（<code>VERSION_TYPE</code>）下，<code>(version, versionCode)</code> 组合必须唯一，否则后端会返回 <code>400</code>，提示“同一平台下该版本号已存在”。前端无需自行校验唯一性，直接根据接口返回的错误信息进行提示即可。
+              <strong>必填字段与唯一约束：</strong>接口请求体中 <code>versionType</code>、<code>version</code>、<code>versionCode</code> 为必填字段；同一应用（<code>APP_ID</code>）与平台（<code>VERSION_TYPE</code>）下，<code>(version, versionCode)</code> 组合必须唯一，否则后端会返回 <code>400</code>，提示"同一平台下该版本号已存在"。前端无需自行校验唯一性，直接根据接口返回的错误信息进行提示即可。
             </p>
+            <p>
+              <strong>downloadUrl 字段说明：</strong>根据平台类型（<code>versionType</code>），<code>downloadUrl</code> 字段的含义不同：
+            </p>
+            <ul>
+              <li><strong>Android (versionType=1)：</strong>存储 OSS 的完整 URL（如：<code>https://bucket.oss-cn-hangzhou.aliyuncs.com/apps/packages/app.apk</code>）。固定下载接口会从 OSS 代理下载 APK 文件。</li>
+              <li><strong>非 Android 平台（如 iOS、鸿蒙、各类 H5 / 小程序 等）：</strong>存储对应平台的完整访问 URL，例如：
+                <ul>
+                  <li>iOS：App Store URL（如：<code>https://apps.apple.com/us/app/xxx/id123456</code>）</li>
+                  <li>鸿蒙：鸿蒙应用市场 URL</li>
+                  <li>H5 / 小程序：H5 页面地址或小程序唤起链接</li>
+                </ul>
+                固定下载接口会 302 重定向到此 URL。
+              </li>
+            </ul>
           </template>
           <template #curl>
 <pre><code>curl -X POST {{full('/api/mobile/apps/1/versions')}} \
@@ -134,8 +148,16 @@ export default defineComponent({
               <strong>权限说明：</strong>需要 USER_LEVEL.DEVELOPER（2-开发人员）或更高级别 USER_LEVEL.SUPER_ADMIN（1-超级管理员）。USER_LEVEL.SUPER_ADMIN（1-超级管理员）可以更新任意应用的版本；其他用户需要拥有该应用的授权记录，可以通过 <a href="#api-access"><code>/api/mobile/apps/:appId/access</code></a> 或者 <a href="#api-permission"><code>/api/mobile/apps/:appId/permission</code></a> 接口判断开发人员是否拥有该应用版本更新权限。
             </p>
             <p>
-              <strong>更新说明：</strong>支持部分字段更新。若传入 <code>versionType</code>，必须是单个平台整数，并且属于应用已支持的平台集合（即 <code>(appType & versionType) != 0</code>）。若传入 <code>versionCode</code>，也会受到组合键唯一约束，冲突时同样返回“同一平台下该版本号已存在”，前端无需额外校验。
+              <strong>更新说明：</strong>支持部分字段更新。可更新字段包括：<code>version</code>、<code>versionCode</code>、<code>comment</code>、<code>downloadSize</code>、<code>downloadUrl</code>、<code>downloadScanImg</code>、<code>versionType</code>。若传入 <code>versionType</code>，必须是单个平台整数，并且属于应用已支持的平台集合（即 <code>(appType & versionType) != 0</code>）。若传入 <code>versionCode</code>，也会受到组合键唯一约束，冲突时同样返回"同一平台下该版本号已存在"，前端无需额外校验。
             </p>
+            <p>
+              <strong>downloadUrl 字段说明：</strong>根据平台类型（<code>versionType</code>），<code>downloadUrl</code> 字段的含义不同：
+            </p>
+            <ul>
+              <li><strong>Android (versionType=1)：</strong>存储 OSS 的完整 URL（如：<code>https://bucket.oss-cn-hangzhou.aliyuncs.com/apps/packages/app.apk</code>）。固定下载接口会从 OSS 代理下载 APK 文件。</li>
+              <li><strong>iOS (versionType=2)：</strong>存储 App Store 的完整 URL（如：<code>https://apps.apple.com/us/app/xxx/id123456</code>）。固定下载接口会 302 重定向到此 URL。</li>
+              <li><strong>鸿蒙 (versionType=4)：</strong>存储鸿蒙应用市场的完整 URL。固定下载接口会 302 重定向到此 URL。</li>
+            </ul>
           </template>
           <template #curl>
 <pre><code>curl -X PUT {{full('/api/mobile/versions/1')}} \

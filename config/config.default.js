@@ -73,6 +73,7 @@ module.exports = appInfo => {
       user: process.env.MYSQL_USER || 'root',
       password: process.env.MYSQL_PASSWORD || '',
       database: process.env.MYSQL_DATABASE || 'egg_minimal',
+      charset: 'utf8mb4', // 支持 emoji 等 4 字节字符
     },
     app: true,
     agent: false,

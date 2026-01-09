@@ -305,59 +305,89 @@ class ClientController extends Controller {
         return;
       }
 
-      // 从OSS URL中提取文件路径
-      const filePath = ctx.service.ossService.extractPathFromUrl(latest.DOWNLOAD_URL);
-      if (!filePath) {
-        ctx.status = 500;
-        ctx.body = { code: 500, message: '无法解析下载地址' };
-        return;
-      }
+      // 根据平台类型处理下载
+      // versionType: 1=Android，其他平台统一按 URL 重定向处理
+      if (versionTypeNum === 1) {
+        // Android 平台：从 OSS 代理下载 APK 文件
+        // 从OSS URL中提取文件路径
+        const filePath = ctx.service.ossService.extractPathFromUrl(latest.DOWNLOAD_URL);
+        if (!filePath) {
+          ctx.status = 500;
+          ctx.body = { code: 500, message: '无法解析下载地址，请确保 DOWNLOAD_URL 是有效的 OSS 地址' };
+          return;
+        }
 
-      // 从OSS读取文件内容
-      const { buffer, res } = await ctx.service.ossService.getFileContent(filePath);
+        // 从OSS读取文件内容
+        const { buffer, res } = await ctx.service.ossService.getFileContent(filePath);
 
-      // 监听 socket 的错误事件（TCP 层），过滤客户端提前断开连接的错误
-      // 移动浏览器在开始下载后可能会关闭 HTTP 连接，这是正常行为，不应该记录为错误
-      if (ctx.res.socket) {
-        const socketErrorHandler = err => {
-          if (err.code === 'ECONNRESET' && ctx.res.headersSent) {
-            // 不记录为错误，静默处理
-            return;
-          }
-        };
-        // 移除 socket 上可能存在的 error 监听器
-        ctx.res.socket.removeAllListeners('error');
-        ctx.res.socket.on('error', socketErrorHandler);
+        // 监听 socket 的错误事件（TCP 层），过滤客户端提前断开连接的错误
+        // 移动浏览器在开始下载后可能会关闭 HTTP 连接，这是正常行为，不应该记录为错误
+        if (ctx.res.socket) {
+          const socketErrorHandler = err => {
+            if (err.code === 'ECONNRESET' && ctx.res.headersSent) {
+              // 不记录为错误，静默处理
+              return;
+            }
+          };
+          // 移除 socket 上可能存在的 error 监听器
+          ctx.res.socket.removeAllListeners('error');
+          ctx.res.socket.on('error', socketErrorHandler);
+          
+          // 清理 socket 错误处理器
+          ctx.res.once('close', () => {
+            if (ctx.res.socket) {
+              ctx.res.socket.removeListener('error', socketErrorHandler);
+            }
+          });
+        }
         
-        // 清理 socket 错误处理器
-        ctx.res.once('close', () => {
-          if (ctx.res.socket) {
-            ctx.res.socket.removeListener('error', socketErrorHandler);
-          }
-        });
-      }
-      
-      // 设置响应头
-      const filename = latest.DOWNLOAD_URL.split('/').pop() || `app_${appIdNum}_v${latest.VERSION}.apk`;
-      ctx.set('Content-Type', res.headers['content-type'] || 'application/vnd.android.package-archive');
-      ctx.set('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-      
-      // 设置 Content-Length（使用实际 buffer 长度，更可靠）
-      const contentLength = res.headers['content-length'] || buffer.length;
-      if (contentLength) {
-        ctx.set('Content-Length', String(contentLength));
-      }
-      
-      // 如果有缓存控制头，也传递
-      if (res.headers['cache-control']) {
-        ctx.set('Cache-Control', res.headers['cache-control']);
-      }
-      if (res.headers['etag']) {
-        ctx.set('ETag', res.headers['etag']);
-      }
+        // 设置响应头
+        const filename = latest.DOWNLOAD_URL.split('/').pop() || `app_${appIdNum}_v${latest.VERSION}.apk`;
+        ctx.set('Content-Type', res.headers['content-type'] || 'application/vnd.android.package-archive');
+        ctx.set('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+        
+        // 设置 Content-Length（使用实际 buffer 长度，更可靠）
+        const contentLength = res.headers['content-length'] || buffer.length;
+        if (contentLength) {
+          ctx.set('Content-Length', String(contentLength));
+        }
+        
+        // 如果有缓存控制头，也传递
+        if (res.headers['cache-control']) {
+          ctx.set('Cache-Control', res.headers['cache-control']);
+        }
+        if (res.headers['etag']) {
+          ctx.set('ETag', res.headers['etag']);
+        }
 
-      // 返回文件 Buffer
-      ctx.body = buffer;
+        // 返回文件 Buffer
+        ctx.body = buffer;
+      } else {
+        // 其他平台（包括 iOS / 鸿蒙 / 各类 H5 / 小程序 等）：
+        // 统一直接 302 跳转到 DOWNLOAD_URL 指向的地址
+        // 例如：
+        // - iOS：App Store 链接
+        // - 鸿蒙：鸿蒙应用市场链接
+        // - H5 / 小程序：H5 页面地址或小程序唤起链接
+        const rawUrl = latest.DOWNLOAD_URL.trim();
+        
+        // 验证 URL 格式，并对可能的中文 / 空格等字符进行编码，避免出现无效 Header 字符
+        let safeUrl;
+        try {
+          const urlObj = new URL(rawUrl);
+          // 使用 encodeURI 对完整 URL 进行编码，保留协议、斜杠等保留字符
+          safeUrl = encodeURI(urlObj.toString());
+        } catch (error) {
+          ctx.status = 400;
+          ctx.body = { code: 400, message: '下载地址格式无效，请确保是完整的 URL（需包含 http:// 或 https://）' };
+          return;
+        }
+        
+        // 302 重定向到对应平台的 URL
+        ctx.status = 302;
+        ctx.set('Location', safeUrl);
+        ctx.body = '';
+      }
     } catch (error) {
       ctx.logger.error('客户端下载应用失败:', error);
       
