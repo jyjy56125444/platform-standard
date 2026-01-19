@@ -84,6 +84,42 @@ export default defineComponent({
         </api-card>
       </section>
 
+      <section id="versions-qrcode">
+        <api-card method="GET" path="/api/mobile/apps/:appId/versions/qrcode" pill="get" title="获取下载二维码">
+          <template #desc>
+            <p>生成应用指定平台的下载二维码，返回 base64 格式的图片数据。所有用户可查看。</p>
+            <p><strong>功能特性：</strong></p>
+            <ul>
+              <li>自动生成二维码，二维码内容指向固定下载地址：<code>{baseUrl}/api/mobile/client/apps/{appId}/download?versionType={versionType}</code></li>
+              <li>如果应用配置了图标（<code>APP_ICON</code>），会自动将图标嵌入二维码中心，图标背景为白色</li>
+              <li>如果应用未配置图标或图标获取失败，会生成无图标的二维码</li>
+              <li>二维码使用高纠错级别（H），即使中心被图标遮挡也能正常扫描</li>
+            </ul>
+            <p><strong>baseUrl 说明：</strong>优先使用配置的环境变量 <code>BASE_URL</code>，如果没有配置则使用请求的 origin。生产环境建议配置 <code>BASE_URL</code> 环境变量，确保二维码中的地址是公网可访问的部署地址。</p>
+            <p><strong>权限说明：</strong>所有用户可查看。</p>
+          </template>
+          <template #curl>
+<pre><code># 获取 Android 平台（versionType=1）的下载二维码
+curl -X GET "{{full('/api/mobile/apps/1/versions/qrcode')}}?versionType=1" \
+  -H "Authorization: {{tokenHeader}}"
+
+# 获取 iOS 平台（versionType=2）的下载二维码
+curl -X GET "{{full('/api/mobile/apps/1/versions/qrcode')}}?versionType=2" \
+  -H "Authorization: {{tokenHeader}}"</code></pre>
+          </template>
+          <template #response>
+<pre><code>{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "qrcode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAAAAAA...",
+    "downloadUrl": "https://example.com/api/mobile/client/apps/1/download?versionType=1"
+  }
+}</code></pre>
+          </template>
+        </api-card>
+      </section>
+
       <section id="versions-create">
         <api-card method="POST" path="/api/mobile/apps/:appId/versions" pill="post" title="创建版本">
           <template #desc>

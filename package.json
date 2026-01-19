@@ -41,7 +41,9 @@
     "langchain": "^1.1.5",
     "mysql2": "^3.0.0",
     "pdf-parse": "^2.4.5",
+    "qrcode": "^1.5.4",
     "sequelize": "^6.0.0",
+    "sharp": "^0.34.5",
     "vue": "^3.5.22"
   },
   "devDependencies": {

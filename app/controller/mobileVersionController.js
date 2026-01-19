@@ -1,6 +1,8 @@
 'use strict';
 
 const Controller = require('egg').Controller;
+const QRCode = require('qrcode');
+const sharp = require('sharp');
 const { PermissionUtil, USER_LEVEL } = require('../utils/permission');
 const { toCamelCaseKeys } = require('../utils/case');
 const { validateVersionType } = require('../utils/bitmask');
@@ -144,7 +146,7 @@ class MobileVersionController extends Controller {
         ctx.status = 400;
         ctx.body = { code: 400, message: '无效的版本ID' };
         return;
-      }
+      } 
 
       const existing = await ctx.service.mobileVersionService.getById(id);
       if (!existing) {
@@ -275,6 +277,174 @@ class MobileVersionController extends Controller {
       ctx.logger.error('删除版本失败:', error);
       ctx.status = 500;
       ctx.body = { code: 500, message: '删除版本失败', error: error.message };
+    }
+  }
+
+  /**
+   * 获取应用某平台的下载二维码（base64格式）
+   * GET /api/mobile/apps/:appId/versions/qrcode?versionType=1
+   * 说明：生成二维码图片，二维码内容为固定下载地址，无需 ticket 验证
+   */
+  async getDownloadQrcode() {
+    const { ctx } = this;
+    try {
+      const appId = parseInt(ctx.params.appId, 10);
+      if (!appId || Number.isNaN(appId)) {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: '无效的应用ID' };
+        return;
+      }
+
+      const { versionType } = ctx.query;
+      if (versionType === undefined || versionType === null || versionType === '') {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: 'versionType 为必填参数' };
+        return;
+      }
+
+      const versionTypeNum = parseInt(versionType, 10);
+      if (!versionTypeNum || Number.isNaN(versionTypeNum)) {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: 'versionType 必须是数字' };
+        return;
+      }
+
+      // 验证应用是否存在
+      const app = await ctx.service.mobileAppService.findById(appId);
+      if (!app) {
+        ctx.status = 404;
+        ctx.body = { code: 404, message: '应用不存在' };
+        return;
+      }
+
+      // 验证版本平台类型是否允许
+      try {
+        validateVersionType(versionTypeNum, app.APP_TYPE);
+      } catch (error) {
+        if (error.code === 'INVALID_PLATFORM_VALUE') {
+          ctx.status = 400;
+          ctx.body = { code: 400, message: error.message };
+          return;
+        }
+        if (error.code === 'PLATFORM_NOT_ALLOWED') {
+          ctx.status = 400;
+          ctx.body = { code: 400, message: error.message };
+          return;
+        }
+        throw error;
+      }
+
+      // 构建基础 URL
+      // 优先使用配置的 baseUrl（生产环境推荐），如果没有配置则使用请求的 origin
+      const configBaseUrl = ctx.app.config.baseUrl;
+      let baseUrl;
+      if (configBaseUrl && configBaseUrl.trim().length > 0) {
+        // 使用配置的基础 URL（移除末尾的斜杠）
+        baseUrl = configBaseUrl.trim().replace(/\/$/, '');
+      } else {
+        // 使用请求的 origin（包含协议和主机）
+        baseUrl = ctx.request.origin || `${ctx.request.protocol}://${ctx.request.host}`;
+      }
+      
+      // 构建下载地址
+      const downloadUrl = `${baseUrl}/api/mobile/client/apps/${appId}/download?versionType=${versionTypeNum}`;
+
+      // 二维码尺寸
+      const qrCodeSize = 300;
+      // 图标尺寸（占二维码的 25%）
+      const iconSize = Math.floor(qrCodeSize * 0.25);
+
+      // 生成二维码 Buffer（使用高纠错级别，以便在中心放置图标）
+      const qrCodeBuffer = await QRCode.toBuffer(downloadUrl, {
+        errorCorrectionLevel: 'H', // 高纠错级别，支持中心区域被遮挡
+        type: 'image/png',
+        margin: 1,
+        width: qrCodeSize,
+      });
+
+      // 尝试获取应用图标并合成到二维码中心
+      let finalQrCodeBuffer = qrCodeBuffer;
+      if (app.APP_ICON && app.APP_ICON.trim().length > 0) {
+        try {
+          // 从 OSS 获取图标
+          const iconPath = ctx.service.ossService.extractPathFromUrl(app.APP_ICON);
+          if (iconPath) {
+            const { buffer: iconBuffer } = await ctx.service.ossService.getFileContent(iconPath);
+            
+            // 图标内边距（用于创建白色边框效果）
+            const iconPadding = Math.floor(iconSize * 0.1);
+            const iconContentSize = iconSize - iconPadding * 2;
+            
+            // 先创建一个白色背景方块
+            const whiteBackground = await sharp({
+              create: {
+                width: iconSize,
+                height: iconSize,
+                channels: 4,
+                background: { r: 255, g: 255, b: 255, alpha: 1 }, // 纯白色背景
+              },
+            })
+              .png()
+              .toBuffer();
+            
+            // 处理图标：调整大小，保持宽高比，添加白色背景
+            const processedIcon = await sharp(iconBuffer)
+              .resize(iconContentSize, iconContentSize, {
+                fit: 'contain',
+                background: { r: 255, g: 255, b: 255, alpha: 1 }, // 白色背景
+              })
+              .png()
+              .toBuffer();
+
+            // 将图标居中放在白色背景上
+            const iconWithBackground = await sharp(whiteBackground)
+              .composite([
+                {
+                  input: processedIcon,
+                  left: iconPadding,
+                  top: iconPadding,
+                },
+              ])
+              .png()
+              .toBuffer();
+
+            // 计算图标在二维码中的位置（居中）
+            const iconX = Math.floor((qrCodeSize - iconSize) / 2);
+            const iconY = Math.floor((qrCodeSize - iconSize) / 2);
+
+            // 将带白色背景的图标合成到二维码中心
+            finalQrCodeBuffer = await sharp(qrCodeBuffer)
+              .composite([
+                {
+                  input: iconWithBackground,
+                  left: iconX,
+                  top: iconY,
+                },
+              ])
+              .png()
+              .toBuffer();
+          }
+        } catch (iconError) {
+          // 如果图标获取或处理失败，记录日志但不影响二维码生成
+          ctx.logger.warn('应用图标处理失败，使用无图标二维码:', iconError.message);
+        }
+      }
+
+      // 将最终的二维码 Buffer 转换为 base64
+      const qrcodeBase64 = `data:image/png;base64,${finalQrCodeBuffer.toString('base64')}`;
+
+      ctx.body = {
+        code: 200,
+        message: 'success',
+        data: {
+          qrcode: qrcodeBase64, // base64 格式的图片数据（包含 data:image/png;base64, 前缀）
+          downloadUrl, // 二维码对应的下载地址
+        },
+      };
+    } catch (error) {
+      ctx.logger.error('生成下载二维码失败:', error);
+      ctx.status = 500;
+      ctx.body = { code: 500, message: '生成下载二维码失败', error: error.message };
     }
   }
 }

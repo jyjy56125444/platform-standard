@@ -177,6 +177,7 @@ export default defineComponent({
           <ul class="nav" v-show="versionsOpen">
             <li><a href="#versions-list">版本列表 /api/mobile/apps/:appId/versions</a></li>
             <li><a href="#versions-detail">版本详情 /api/mobile/versions/:id</a></li>
+            <li><a href="#versions-qrcode">获取下载二维码 /api/mobile/apps/:appId/versions/qrcode</a></li>
             <li><a href="#versions-create">创建版本 /api/mobile/apps/:appId/versions</a></li>
             <li><a href="#versions-update">更新版本 /api/mobile/versions/:id</a></li>
             <li><a href="#versions-delete">删除版本 /api/mobile/versions/:id</a></li>

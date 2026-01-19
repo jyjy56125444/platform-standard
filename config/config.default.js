@@ -171,6 +171,11 @@ module.exports = appInfo => {
     signSecret: process.env.RAG_TICKET_SIGN_SECRET || '',
   };
 
+  // 应用基础 URL 配置（用于生成二维码等场景）
+  // 如果配置了此选项，将优先使用配置的地址；否则使用请求的 origin
+  // 生产环境建议通过环境变量 BASE_URL 配置，例如：https://your-domain.com
+  config.baseUrl = process.env.BASE_URL || '';
+
   // add your user config here
   const userConfig = {
     // myAppName: 'egg',

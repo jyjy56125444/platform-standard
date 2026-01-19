@@ -41,6 +41,7 @@ module.exports = app => {
   router.delete('/api/mobile/apps/:id', controller.mobileAppController.delete); // 删除应用（1级别可删除所有，2级别只能删除自己创建的）
 
   // ========== 移动应用版本管理相关API（需要Token验证）==========
+  router.get('/api/mobile/apps/:appId/versions/qrcode', controller.mobileVersionController.getDownloadQrcode); // 获取应用某平台的下载二维码（base64格式）
   router.get('/api/mobile/apps/:appId/versions', controller.mobileVersionController.list); // 获取某应用的版本列表（所有人可查看）
   router.get('/api/mobile/versions/:id', controller.mobileVersionController.detail);       // 获取版本详情（所有人可查看）
   router.post('/api/mobile/apps/:appId/versions', controller.mobileVersionController.create); // 创建版本（管理员任意，开发者仅自己创建的应用）
