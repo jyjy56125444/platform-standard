@@ -130,7 +130,8 @@ class UploadController extends Controller {
           return;
         }
         // 常见APK MIME：application/vnd.android.package-archive
-        if (mime && !/android|package|apk/i.test(mime)) {
+        // Firefox 等浏览器可能发送 application/octet-stream，也应允许（已通过扩展名校验）
+        if (mime && !/android|package|apk|octet-stream/i.test(mime)) {
           ctx.status = 400;
           ctx.body = { code: 400, message: '安装包MIME类型不合法' };
           return;
