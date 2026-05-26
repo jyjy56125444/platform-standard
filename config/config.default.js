@@ -115,7 +115,8 @@ module.exports = appInfo => {
     accessKeyId: process.env.OSS_ACCESS_KEY_ID || '', // 从环境变量或 local/prod 配置读取
     accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET || '', // 从环境变量或 local/prod 配置读取
     bucket: process.env.OSS_BUCKET || 'platform-standard', // Bucket 名称
-    endpoint: process.env.OSS_ENDPOINT || '', // 可选：自定义域名
+    endpoint: process.env.OSS_ENDPOINT || '', // 可选：自定义域名（SDK 访问用）
+    downloadBaseUrl: process.env.OSS_DOWNLOAD_BASE_URL || '', // 对外下载 CNAME 域名（如 http://download-mid.yd-mobile.com）
     // 上传配置
     upload: {
       dir: 'avatars/', // 上传目录前缀

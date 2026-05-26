@@ -242,10 +242,15 @@ class ClientController extends Controller {
         return;
       }
 
+      const data = ctx.app.utils.case.toCamelCaseKeys(latest);
+      if (data.downloadUrl) {
+        data.downloadUrl = ctx.service.ossService.toPackageDownloadUrl(data.downloadUrl);
+      }
+
       ctx.body = {
         code: 200,
         message: 'success',
-        data: ctx.app.utils.case.toCamelCaseKeys(latest),
+        data,
       };
     } catch (error) {
       ctx.logger.error('客户端获取最新版本失败:', error);

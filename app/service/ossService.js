@@ -144,6 +144,31 @@ class OssService extends Service {
   }
 
   /**
+   * 将 OSS 安装包 URL 转为对外 CNAME 下载地址（仅处理 apps/packages/ 路径）
+   * @param {String} url 原始 URL
+   * @returns {String} CNAME URL；非 OSS 安装包地址或未配置 downloadBaseUrl 时原样返回
+   */
+  toPackageDownloadUrl(url) {
+    if (!url || typeof url !== 'string') {
+      return url;
+    }
+
+    const base = this.config.oss?.downloadBaseUrl;
+    if (!base) {
+      return url;
+    }
+
+    const trimmed = url.trim();
+    const match = trimmed.match(/\/apps\/packages\/[^/?#]+/);
+    if (!match) {
+      return trimmed;
+    }
+
+    const path = match[0].replace(/^\//, '');
+    return `${base.replace(/\/$/, '')}/${path}`;
+  }
+
+  /**
    * 从OSS URL中提取文件路径
    * @param {String} url OSS文件URL
    * @returns {String} 文件路径
